@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedPostRouteImport } from './routes/_authenticated/post'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedGroupsRouteImport } from './routes/_authenticated/groups'
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
@@ -49,6 +50,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPostRoute = AuthenticatedPostRouteImport.update({
+  id: '/post',
+  path: '/post',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof AuthenticatedDiscoverRoute
   '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/post': typeof AuthenticatedPostRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/trip/$tripId': typeof AuthenticatedTripTripIdRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/discover': typeof AuthenticatedDiscoverRoute
   '/groups': typeof AuthenticatedGroupsRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/post': typeof AuthenticatedPostRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/trip/$tripId': typeof AuthenticatedTripTripIdRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/_authenticated/discover': typeof AuthenticatedDiscoverRoute
   '/_authenticated/groups': typeof AuthenticatedGroupsRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/post': typeof AuthenticatedPostRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/trip/$tripId': typeof AuthenticatedTripTripIdRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/groups'
     | '/home'
+    | '/post'
     | '/profile'
     | '/auth/callback'
     | '/trip/$tripId'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/groups'
     | '/home'
+    | '/post'
     | '/profile'
     | '/auth/callback'
     | '/trip/$tripId'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/_authenticated/discover'
     | '/_authenticated/groups'
     | '/_authenticated/home'
+    | '/_authenticated/post'
     | '/_authenticated/profile'
     | '/auth/callback'
     | '/_authenticated/trip/$tripId'
@@ -218,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/post': {
+      id: '/_authenticated/post'
+      path: '/post'
+      fullPath: '/post'
+      preLoaderRoute: typeof AuthenticatedPostRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/home': {
       id: '/_authenticated/home'
       path: '/home'
@@ -268,6 +287,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDiscoverRoute: typeof AuthenticatedDiscoverRoute
   AuthenticatedGroupsRoute: typeof AuthenticatedGroupsRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedPostRoute: typeof AuthenticatedPostRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedTripTripIdRoute: typeof AuthenticatedTripTripIdRoute
   AuthenticatedTripTripIdChatRoute: typeof AuthenticatedTripTripIdChatRoute
@@ -278,6 +298,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDiscoverRoute: AuthenticatedDiscoverRoute,
   AuthenticatedGroupsRoute: AuthenticatedGroupsRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedPostRoute: AuthenticatedPostRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedTripTripIdRoute: AuthenticatedTripTripIdRoute,
   AuthenticatedTripTripIdChatRoute: AuthenticatedTripTripIdChatRoute,

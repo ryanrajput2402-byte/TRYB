@@ -1,11 +1,24 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { LogOut, Settings, MapPin, X, Loader as Loader2 } from "lucide-react";
+import { LogOut, Settings, MapPin, X, Loader as Loader2, Camera } from "lucide-react";
 import { DESTINATIONS, INTEREST_TAGS } from "@/lib/destinations";
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+async function uploadAvatar(userId: string, file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file");
+  if (file.size > MAX_AVATAR_BYTES) throw new Error("Image must be under 5MB");
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — TRYB" }] }),
@@ -192,6 +205,23 @@ function EditProfileModal({ profile, onClose, onSave }: {
   const [location, setLocation] = useState(profile.location ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatar(profile.id, file);
+      setAvatarUrl(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't upload photo");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -248,20 +278,45 @@ function EditProfileModal({ profile, onClose, onSave }: {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wide">Avatar URL</label>
-            <input
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://…"
-              type="url"
-              className="w-full rounded-xl border border-glass-border bg-surface px-4 py-3 text-sm outline-none focus:border-primary transition"
-            />
-            {avatarUrl && (
-              <div className="mt-2 flex items-center gap-3">
-                <img src={avatarUrl} alt="Preview" className="h-12 w-12 rounded-full object-cover border border-glass-border" onError={(e) => (e.currentTarget.style.display = "none")} />
-                <span className="text-xs text-muted-foreground">Preview</span>
-              </div>
-            )}
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wide">Photo</label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="group relative grid h-16 w-16 flex-shrink-0 place-items-center overflow-hidden rounded-full bg-surface ring-1 ring-glass-border disabled:opacity-60"
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar preview" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="font-display text-lg font-bold text-primary">
+                    {(fullName || "?").slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <span className="absolute inset-0 grid place-items-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                  {uploadingAvatar ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <Camera className="h-5 w-5 text-white" />
+                  )}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="glass-card rounded-full px-4 py-2 text-xs font-medium hover:bg-surface-elevated transition disabled:opacity-60"
+              >
+                {uploadingAvatar ? "Uploading…" : "Change photo"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+            </div>
           </div>
         </div>
 
