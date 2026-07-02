@@ -123,6 +123,8 @@ export function GroupChat({ tripId }: { tripId: string }) {
   const [creatingExpense, setCreatingExpense] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
   const [tripCurrency, setTripCurrency] = useState("USD");
+  const [tripName, setTripName] = useState("");
+  const [tripPhoto, setTripPhoto] = useState<string | null>(null);
 
   const membersById = useMemo(() => {
     const map = new Map<string, Member>();
@@ -146,10 +148,14 @@ export function GroupChat({ tripId }: { tripId: string }) {
 
       const { data: trip } = await supabase
         .from("trips")
-        .select("currency")
+        .select("currency, destination, cover_image")
         .eq("id", tripId)
         .maybeSingle();
       if (!cancelled && trip?.currency) setTripCurrency(trip.currency);
+      if (!cancelled && trip) {
+        setTripName(trip.destination ?? "");
+        setTripPhoto(trip.cover_image ?? null);
+      }
 
       const { data: memberRows } = await supabase
         .from("trip_members")
@@ -585,7 +591,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <ChatHeader tripId={tripId} members={members} />
+      <ChatHeader tripId={tripId} members={members} tripName={tripName} tripPhoto={tripPhoto} />
 
       <main className="flex-1 space-y-4 overflow-y-auto px-4 pb-40 pt-4">
         {messages.length === 0 && (
@@ -678,7 +684,17 @@ export function GroupChat({ tripId }: { tripId: string }) {
   );
 }
 
-function ChatHeader({ tripId, members }: { tripId: string; members: Member[] }) {
+function ChatHeader({
+  tripId,
+  members,
+  tripName,
+  tripPhoto,
+}: {
+  tripId: string;
+  members: Member[];
+  tripName: string;
+  tripPhoto: string | null;
+}) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 bg-background/80 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 backdrop-blur-xl">
       <Link
@@ -689,8 +705,17 @@ function ChatHeader({ tripId, members }: { tripId: string; members: Member[] }) 
       >
         <ArrowLeft className="h-4 w-4" />
       </Link>
+      <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-primary/20">
+        {tripPhoto ? (
+          <img src={tripPhoto} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full w-full place-items-center text-sm font-bold text-primary">
+            {initials(tripName)}
+          </div>
+        )}
+      </div>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate font-display text-lg font-bold">Group chat</h1>
+        <h1 className="truncate font-display text-lg font-bold">{tripName || "Group chat"}</h1>
         <p className="truncate text-xs text-muted-foreground">
           {members.length} member{members.length === 1 ? "" : "s"}
         </p>
