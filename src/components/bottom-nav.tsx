@@ -1,6 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Compass, Plus, Users, User } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Home, Compass, Plus, Users, User, ImagePlus, MapPin } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type Item = { to: string; label: string; icon: LucideIcon; primary?: boolean };
 
@@ -24,16 +25,7 @@ export function BottomNav() {
           const Icon = item.icon;
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
           if (item.primary) {
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition active:scale-90"
-                aria-label={item.label}
-              >
-                <Icon className="h-5 w-5" />
-              </Link>
-            );
+            return <CreateTray key={item.to} icon={Icon} label={item.label} />;
           }
           return (
             <Link
@@ -52,5 +44,47 @@ export function BottomNav() {
         })}
       </div>
     </nav>
+  );
+}
+
+function CreateTray({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  const navigate = useNavigate();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition active:scale-90"
+          aria-label={label}
+        >
+          <Icon className="h-5 w-5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={12}
+        className="glass-card w-auto rounded-2xl border-0 bg-surface-elevated p-2 shadow-2xl"
+      >
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/post" })}
+            className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition hover:bg-surface"
+          >
+            <ImagePlus className="h-4 w-4 text-primary" />
+            Post
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/create" })}
+            className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition hover:bg-surface"
+          >
+            <MapPin className="h-4 w-4 text-primary" />
+            Trip
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
