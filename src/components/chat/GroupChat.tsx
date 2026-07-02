@@ -57,16 +57,54 @@ const REACTION_EMOJI = ["❤️", "😂", "👍", "😮", "🙌"];
 // Placeholder for a real Keyo AI backend — swap for an edge function call later.
 function getKeyoResponse(query: string): string {
   const q = query.trim().toLowerCase();
-  if (!q) return "Ask me about the itinerary, deals, or splitting a cost — I'll do my best!";
-  if (q.includes("weather"))
-    return "I can't check live weather yet, but pack layers — most spots swing 10°+ between day and night.";
-  if (q.includes("budget") || q.includes("cost") || q.includes("split") || q.includes("expense")) {
-    return "Tap the 💸 button below to log an expense — I'll help split it evenly across the group.";
+  if (!q) {
+    return "Ask me about packing, weather, food, hotels, itinerary ideas, or splitting costs — I'll do my best to help!";
   }
-  if (q.includes("itinerary") || q.includes("plan") || q.includes("schedule")) {
-    return "Full itinerary planning is coming soon — for now, drop ideas here and vote on them with a poll!";
+  if (q.includes("pack") || q.includes("bring") || q.includes("luggage") || q.includes("bag")) {
+    return "Pack light and layer-friendly: 2-3 versatile outfits you can mix and match, a light rain shell, comfortable walking shoes, a reusable water bottle, a portable charger, and any adapters you'll need locally. Check the forecast a few days out and swap in warmer or cooler layers as needed. Roll clothes instead of folding to save space, and leave a little room for souvenirs on the way back.";
   }
-  return `Got it — "${query.trim()}". I'm still learning, but the group can jump in below!`;
+  if (q.includes("weather") || q.includes("temperature") || q.includes("rain") || q.includes("climate")) {
+    return "I can't pull live weather yet, but as a rule of thumb pack layers — many destinations swing 10°+ between day and night. Check a forecast app 3-5 days before you leave so you can adjust what you're bringing, and throw in a compact rain jacket just in case.";
+  }
+  if (
+    q.includes("food") ||
+    q.includes("eat") ||
+    q.includes("restaurant") ||
+    q.includes("cuisine") ||
+    q.includes("dinner") ||
+    q.includes("lunch")
+  ) {
+    return "For food, look up 2-3 highly-rated local spots near where you're staying and book anything popular a day ahead — walk-ins can mean long waits at peak times. Ask locals or your host for their go-to spot too, it's usually better than anything in a guidebook. Budget extra for one \"special\" meal on the trip — it's always worth it.";
+  }
+  if (
+    q.includes("hotel") ||
+    q.includes("stay") ||
+    q.includes("accommodation") ||
+    q.includes("airbnb") ||
+    q.includes("hostel")
+  ) {
+    return "For where to stay, prioritize location over luxury — being walkable to the things you actually want to do saves more time and money than a fancier room further out. Read the most recent reviews (not just the star rating), and double check that check-in/check-out times line up with your flights so you're not stuck killing hours with luggage.";
+  }
+  if (
+    q.includes("budget") ||
+    q.includes("cost") ||
+    q.includes("split") ||
+    q.includes("expense") ||
+    q.includes("money") ||
+    q.includes("price")
+  ) {
+    return "Tap the 💸 button below to log an expense and I'll help split it evenly across the group — everyone can mark it as paid once they've settled up. As a rule of thumb, set a rough daily budget per person up front (food + activities + transport) so nobody's surprised later.";
+  }
+  if (
+    q.includes("itinerary") ||
+    q.includes("plan") ||
+    q.includes("schedule") ||
+    q.includes("activities") ||
+    q.includes("things to do")
+  ) {
+    return "For planning, pick 1-2 \"anchor\" activities per day and leave the rest open — an overpacked schedule is the #1 way trips get stressful. Group activities that are near each other on the same day to cut down on travel time, and build in at least one buffer day for rest or spontaneous plans. Full AI-generated itineraries are coming soon — for now, drop ideas here and create a poll to vote on them!";
+  }
+  return `Got it — "${query.trim()}". I'm still learning, but the group can jump in below! Try asking me about packing, weather, food, hotels, itinerary ideas, or splitting costs.`;
 }
 
 function initials(name?: string | null) {
@@ -82,6 +120,8 @@ export function GroupChat({ tripId }: { tripId: string }) {
   const [sending, setSending] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  const [creatingExpense, setCreatingExpense] = useState(false);
+  const [creatingPoll, setCreatingPoll] = useState(false);
   const [tripCurrency, setTripCurrency] = useState("USD");
 
   const membersById = useMemo(() => {
@@ -261,8 +301,15 @@ export function GroupChat({ tripId }: { tripId: string }) {
           prev.map((m) =>
             m.id === row.message_id
               ? {
+                  // Don't clobber a poll that createPoll's own optimistic update already
+                  // populated with full options — only fill in a skeleton if none exists yet.
                   ...m,
-                  poll: { id: row.id, question: row.question, locked: row.locked, options: [] },
+                  poll: m.poll ?? {
+                    id: row.id,
+                    question: row.question,
+                    locked: row.locked,
+                    options: [],
+                  },
                 }
               : m,
           ),
@@ -370,7 +417,8 @@ export function GroupChat({ tripId }: { tripId: string }) {
     amount: number;
     splitAmong: string[];
   }) {
-    if (!currentUserId) return;
+    if (!currentUserId || creatingExpense) return;
+    setCreatingExpense(true);
     try {
       const { data: expense, error } = await supabase
         .from("expenses")
@@ -404,6 +452,8 @@ export function GroupChat({ tripId }: { tripId: string }) {
       setExpenseOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't add expense");
+    } finally {
+      setCreatingExpense(false);
     }
   }
 
@@ -436,7 +486,8 @@ export function GroupChat({ tripId }: { tripId: string }) {
   }
 
   async function createPoll(input: { question: string; options: string[] }) {
-    if (!currentUserId) return;
+    if (!currentUserId || creatingPoll) return;
+    setCreatingPoll(true);
     try {
       const { data: message, error: msgError } = await supabase
         .from("messages")
@@ -456,6 +507,9 @@ export function GroupChat({ tripId }: { tripId: string }) {
         .select()
         .single();
       if (pollError) throw pollError;
+      // Set this as soon as we know it, so realtime poll_options events arriving
+      // mid-flight (before this function finishes) can still find their message.
+      pollMessageIdByPollId.current.set(poll.id, message.id);
 
       const { data: options, error: optError } = await supabase
         .from("poll_options")
@@ -463,24 +517,35 @@ export function GroupChat({ tripId }: { tripId: string }) {
         .select();
       if (optError) throw optError;
 
-      pollMessageIdByPollId.current.set(poll.id, message.id);
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...message,
-          metadata: (message.metadata ?? {}) as Record<string, any>,
-          reactions: [],
-          poll: {
-            id: poll.id,
-            question: poll.question,
-            locked: poll.locked,
-            options: (options ?? []).map((o) => ({ id: o.id, text: o.text, voterIds: [] })),
+      const fullPoll: PollState = {
+        id: poll.id,
+        question: poll.question,
+        locked: poll.locked,
+        options: (options ?? []).map((o) => ({ id: o.id, text: o.text, voterIds: [] })),
+      };
+
+      // The realtime "messages" INSERT handler may have already added this same
+      // row (Supabase echoes your own writes back to you) while these awaits were
+      // in flight. Merge into it instead of blindly appending a second copy.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) {
+          return prev.map((m) => (m.id === message.id ? { ...m, poll: fullPoll } : m));
+        }
+        return [
+          ...prev,
+          {
+            ...message,
+            metadata: (message.metadata ?? {}) as Record<string, any>,
+            reactions: [],
+            poll: fullPoll,
           },
-        },
-      ]);
+        ];
+      });
       setPollOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't create poll");
+    } finally {
+      setCreatingPoll(false);
     }
   }
 
@@ -601,8 +666,14 @@ export function GroupChat({ tripId }: { tripId: string }) {
         members={members}
         currency={tripCurrency}
         onSubmit={createExpense}
+        submitting={creatingExpense}
       />
-      <PollDialog open={pollOpen} onOpenChange={setPollOpen} onSubmit={createPoll} />
+      <PollDialog
+        open={pollOpen}
+        onOpenChange={setPollOpen}
+        onSubmit={createPoll}
+        submitting={creatingPoll}
+      />
     </div>
   );
 }
@@ -884,12 +955,14 @@ function ExpenseDialog({
   members,
   currency,
   onSubmit,
+  submitting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   members: Member[];
   currency: string;
   onSubmit: (input: { description: string; amount: number; splitAmong: string[] }) => void;
+  submitting: boolean;
 }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -906,6 +979,7 @@ function ExpenseDialog({
   }
 
   function submit() {
+    if (submitting) return;
     const value = parseFloat(amount);
     if (!description.trim() || !value || value <= 0 || splitAmong.length === 0) {
       toast.error("Add a description, amount, and at least one person to split with");
@@ -955,7 +1029,9 @@ function ExpenseDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={submit}>Add expense</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? "Adding…" : "Add expense"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -966,10 +1042,12 @@ function PollDialog({
   open,
   onOpenChange,
   onSubmit,
+  submitting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: { question: string; options: string[] }) => void;
+  submitting: boolean;
 }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
@@ -986,6 +1064,7 @@ function PollDialog({
   }
 
   function submit() {
+    if (submitting) return;
     const cleanOptions = options.map((o) => o.trim()).filter(Boolean);
     if (!question.trim() || cleanOptions.length < 2) {
       toast.error("Add a question and at least 2 options");
@@ -1036,7 +1115,9 @@ function PollDialog({
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit}>Create poll</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? "Creating…" : "Create poll"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
