@@ -48,6 +48,29 @@ function TripDetail() {
 
   useEffect(() => { refresh(); }, [tripId]);
 
+  // So a pending requester sees their approval instantly instead of needing to refresh.
+  useEffect(() => {
+    if (!me?.id) return;
+    const channel = supabase
+      .channel(`trip-membership-${tripId}-${me.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "trip_members", filter: `trip_id=eq.${tripId}` },
+        (payload) => {
+          const row = payload.new as any;
+          if (row.user_id !== me.id) return;
+          setMyMembership(row);
+          setMembers((prev) => prev.map((m) => (m.id === row.id ? row : m)));
+          if (row.status === "approved") toast.success("You're in! Welcome to the trip 🎉");
+          else if (row.status === "rejected") toast.error("Your request to join wasn't approved");
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tripId, me?.id]);
+
   async function requestToJoin() {
     if (!me) return;
     setRequesting(true);
