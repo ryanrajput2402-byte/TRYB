@@ -5,6 +5,7 @@ import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { CountUp } from "@/components/count-up";
 import { PlannedTripCard } from "@/components/planned-trip-card";
+import { TravelQuoteWidget } from "@/components/travel-quote-widget";
 import { DestinationChipRow } from "@/components/destination-chips";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import { useInView } from "@/lib/use-in-view";
@@ -54,6 +55,7 @@ function HomeFeed() {
   const [livePlanners, setLivePlanners] = useState(0);
   const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
   const [condensed, setCondensed] = useState(false);
+  const [hasOwnEngagement, setHasOwnEngagement] = useState(false);
   const tripIndexRef = useRef<Map<string, Trip>>(new Map());
   const reducedMotion = usePrefersReducedMotion();
 
@@ -77,13 +79,19 @@ function HomeFeed() {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
-      const [{ data: p }, { data: t }, { data: sv }] = await Promise.all([
+      const [{ data: p }, { data: t }, { data: sv }, { data: myMembership }] = await Promise.all([
         supabase.from("profiles").select("id, full_name, avatar_url").eq("id", u.user.id).maybeSingle(),
         supabase.from("trips").select("*").order("created_at", { ascending: false }).limit(40),
         supabase.from("saved_trips").select("trip_id").eq("user_id", u.user.id),
+        supabase.from("trip_members").select("id").eq("user_id", u.user.id).limit(1),
       ]);
       setProfile(p as Profile | null);
       setSaved(new Set((sv ?? []).map((r: any) => r.trip_id)));
+      // Segmented hero subtext (Item 1) — "has engagement" means a saved
+      // trip or any real trip_members row (pending/approved join, or their
+      // own organized trip, which auto-inserts a row). Real data only, never
+      // a guess based on session count or time-on-app.
+      setHasOwnEngagement((sv ?? []).length > 0 || (myMembership ?? []).length > 0);
 
       const rawTrips = (t ?? []) as any[];
       const tripIds = rawTrips.map((x) => x.id);
@@ -235,34 +243,44 @@ function HomeFeed() {
         </div>
 
         <main className="mx-auto max-w-7xl px-4 pb-10 pt-3 sm:px-6 lg:px-8">
-          <section className="pb-5 pt-2">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className={`bg-primary absolute inline-flex h-full w-full rounded-full opacity-75 ${reducedMotion ? "" : "animate-breathe"}`} />
-                <span className="bg-primary relative inline-flex h-2.5 w-2.5 rounded-full" />
-              </span>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/50">Live right now</p>
-              {isSparse && (
-                <span className="warm-card ml-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium text-ink/70">
-                  🌱 You're early
+          <section className="pb-5 pt-2 lg:flex lg:items-start lg:gap-6">
+            <div className="lg:min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className={`bg-primary absolute inline-flex h-full w-full rounded-full opacity-75 ${reducedMotion ? "" : "animate-breathe"}`} />
+                  <span className="bg-primary relative inline-flex h-2.5 w-2.5 rounded-full" />
                 </span>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/50">Live right now</p>
+                {isSparse && (
+                  <span className="warm-card ml-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium text-ink/70">
+                    🌱 You're early
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-ink/40">
+                That pull to not miss out? Fair enough — these are real people finalizing real plans right now.
+              </p>
+              {livePlanners > 0 ? (
+                <h1 className="fomo-heading mt-2">
+                  <span className="text-gradient-earth block text-7xl font-bold leading-none sm:text-8xl lg:text-9xl">
+                    <CountUp value={livePlanners} />
+                  </span>
+                  <span className="mt-1.5 block text-2xl font-bold text-ink sm:text-3xl">
+                    {livePlanners === 1 ? "person is" : "people are"} planning trips right now
+                  </span>
+                </h1>
+              ) : (
+                <h1 className="fomo-heading text-gradient-earth mt-2 text-4xl font-bold leading-[1.05] sm:text-5xl">
+                  Trips are being planned right now
+                </h1>
               )}
+              <p className="mt-3 text-sm font-light text-ink/50 sm:text-base">
+                {hasOwnEngagement
+                  ? "Yours is already taking shape — pick back up where you left off."
+                  : "Somewhere out there, your next trip is already taking shape."}
+              </p>
             </div>
-            {livePlanners > 0 ? (
-              <h1 className="fomo-heading mt-2">
-                <span className="text-gradient-earth block text-7xl font-bold leading-none sm:text-8xl lg:text-9xl">
-                  <CountUp value={livePlanners} />
-                </span>
-                <span className="mt-1.5 block text-2xl font-bold text-ink sm:text-3xl">
-                  {livePlanners === 1 ? "person is" : "people are"} planning trips right now
-                </span>
-              </h1>
-            ) : (
-              <h1 className="fomo-heading text-gradient-earth mt-2 text-4xl font-bold leading-[1.05] sm:text-5xl">
-                Trips are being planned right now
-              </h1>
-            )}
-            <p className="mt-3 text-sm font-light text-ink/50 sm:text-base">Somewhere out there, your next trip is already taking shape.</p>
+            <TravelQuoteWidget />
           </section>
 
           {destinationOptions.length > 0 && (

@@ -20,7 +20,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[env(safe-area-inset-bottom)]"
       aria-label="Primary navigation"
     >
-      <div className="glass-card mx-auto mb-3 flex max-w-md items-center justify-around rounded-full px-2 py-2 shadow-2xl">
+      <div className="warm-card mx-auto mb-3 flex max-w-md items-center justify-around rounded-full px-2 py-2 shadow-2xl">
         {ITEMS.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.to || pathname.startsWith(item.to + "/");
@@ -32,7 +32,7 @@ export function BottomNav() {
               key={item.to}
               to={item.to}
               className={`flex min-w-[44px] flex-col items-center gap-0.5 rounded-full px-3 py-2 transition ${
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                active ? "text-primary" : "text-ink/60 hover:text-ink"
               }`}
               aria-label={item.label}
             >
@@ -64,13 +64,13 @@ function CreateTray({ icon: Icon, label }: { icon: LucideIcon; label: string }) 
         side="top"
         align="center"
         sideOffset={12}
-        className="glass-card w-auto rounded-2xl border-0 bg-surface-elevated p-2 shadow-2xl"
+        className="warm-card text-ink w-auto rounded-2xl border-0 p-2 shadow-2xl"
       >
         <div className="flex flex-col gap-1">
           <button
             type="button"
             onClick={() => navigate({ to: "/post" })}
-            className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition hover:bg-surface"
+            className="hover:bg-primary/10 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
           >
             <ImagePlus className="h-4 w-4 text-primary" />
             Post
@@ -78,7 +78,7 @@ function CreateTray({ icon: Icon, label }: { icon: LucideIcon; label: string }) 
           <button
             type="button"
             onClick={() => navigate({ to: "/create" })}
-            className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition hover:bg-surface"
+            className="hover:bg-primary/10 flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
           >
             <MapPin className="h-4 w-4 text-primary" />
             Trip

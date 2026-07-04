@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { LogOut, Settings, MapPin, X, Loader as Loader2, Camera, Palette, ChevronRight } from "lucide-react";
+import { LogOut, Settings, MapPin, X, Loader as Loader2, Camera, Palette, ChevronRight, BookOpen, ShieldCheck } from "lucide-react";
 import { DESTINATIONS, INTEREST_TAGS } from "@/lib/destinations";
 import { useAppTheme } from "@/lib/theme-context";
 import { SEASON_THEMES, DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { ThemePickerModal } from "@/components/theme-picker-modal";
+import { formatMemberSince } from "@/lib/format-date";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -40,6 +41,8 @@ function ProfilePage() {
   const [savedTrips, setSavedTrips] = useState<any[]>([]);
   const [tab, setTab] = useState<"history" | "saved">("history");
   const [editOpen, setEditOpen] = useState(false);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -125,6 +128,7 @@ function ProfilePage() {
               {profile.location}
             </p>
           )}
+          {profile.created_at && <p className="mt-1 text-xs text-ink/40">{formatMemberSince(profile.created_at)}</p>}
 
           <div className="mt-5 grid grid-cols-3 gap-3">
             <Stat n={organizedTrips.length} label="Organized" />
@@ -181,7 +185,11 @@ function ProfilePage() {
           {/* ===== Settings zone — de-emphasized, pushed to the bottom,
               deliberately quieter than everything above ===== */}
           <div className="border-t border-ink/10 pt-5">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink/40">Settings</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink/40">Settings</p>
+            <p className="mb-3 text-[11px] text-ink/40">
+              We only ever show what you choose to share — your exact location and contact info stay private until
+              you're approved into a trip.
+            </p>
             <div className="space-y-2 pb-10">
               <button
                 onClick={() => setEditOpen(true)}
@@ -201,6 +209,20 @@ function ProfilePage() {
                   {currentSeason.label}
                   <ChevronRight className="h-3.5 w-3.5 text-ink/40" />
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStoryOpen(true)}
+                className="warm-card text-ink/70 flex w-full items-center gap-2 rounded-2xl px-4 py-3 text-sm transition hover:bg-ink/5"
+              >
+                <BookOpen className="h-4 w-4" /> Our story
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuidelinesOpen(true)}
+                className="warm-card text-ink/70 flex w-full items-center gap-2 rounded-2xl px-4 py-3 text-sm transition hover:bg-ink/5"
+              >
+                <ShieldCheck className="h-4 w-4" /> Community guidelines
               </button>
               <button
                 onClick={signOut}
@@ -231,6 +253,40 @@ function ProfilePage() {
           onDismiss={() => setThemePickerOpen(false)}
         />
       )}
+
+      {storyOpen && (
+        <PlaceholderModal
+          title="Our story"
+          body="[FOUNDER STORY — replace with your own words]"
+          onClose={() => setStoryOpen(false)}
+        />
+      )}
+
+      {guidelinesOpen && (
+        <PlaceholderModal
+          title="Community guidelines"
+          body="[COMMUNITY GUIDELINES — replace with your own words]"
+          onClose={() => setGuidelinesOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Structure-only (Items 18/22) — real copy to be supplied later.
+function PlaceholderModal({ title, body, onClose }: { title: string; body: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="warm-card text-ink relative z-10 w-full max-w-lg rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="fomo-heading text-xl font-bold">{title}</h2>
+          <button onClick={onClose} className="hover:text-ink grid h-9 w-9 place-items-center rounded-full bg-ink/5 text-ink/50 transition">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="whitespace-pre-wrap text-sm text-ink/60">{body}</p>
+      </div>
     </div>
   );
 }

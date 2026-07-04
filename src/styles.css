@@ -259,6 +259,24 @@
   backdrop-filter: blur(16px) saturate(120%);
   border: 1px solid var(--warm-card-border);
 }
+/* Form-input treatment for Create-a-trip and similar forms — same role
+   slots as warm-card (season-aware), just opaque rather than blurred since
+   inputs sit on the page background rather than floating over photos. */
+@utility ipt {
+  width: 100%;
+  border-radius: 1rem;
+  background: var(--cream);
+  border: 1px solid var(--warm-card-border);
+  padding: 0.85rem 1rem;
+  color: var(--warm-ink);
+  outline: none;
+  &:focus {
+    border-color: var(--primary);
+  }
+  &::placeholder {
+    color: color-mix(in oklch, var(--warm-ink) 40%, transparent);
+  }
+}
 @utility shadow-warm {
   box-shadow: var(--shadow-warm);
 }

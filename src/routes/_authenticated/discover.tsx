@@ -45,7 +45,7 @@ const SIZE_BUCKETS: { id: SizeBucket; label: string }[] = [
   { id: "large", label: "Large · 9+" },
 ];
 
-type Profile = { id: string; full_name: string; avatar_url: string | null };
+type Profile = { id: string; full_name: string; avatar_url: string | null; created_at?: string };
 
 export const Route = createFileRoute("/_authenticated/discover")({
   head: () => ({ meta: [{ title: "Discover — TRYB" }] }),
@@ -62,6 +62,7 @@ function Discover() {
   const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
   const [dateBucket, setDateBucket] = useState<DateBucket>("any");
   const [sizeBucket, setSizeBucket] = useState<SizeBucket>("any");
+  const [soloOnly, setSoloOnly] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -101,15 +102,36 @@ function Discover() {
       const organizerIds = rawTrips.map((x) => x.organizer_id);
       const allProfileIds = Array.from(new Set([...organizerIds, ...(memberRows ?? []).map((m: any) => m.user_id)]));
       const { data: profs } = allProfileIds.length
-        ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", allProfileIds)
+        ? await supabase.from("profiles").select("id, full_name, avatar_url, created_at").in("id", allProfileIds)
         : { data: [] as Profile[] };
       const profById = new Map((profs ?? []).map((p) => [p.id, p as Profile]));
 
+      // Organizer trust stats — one batched query across every distinct
+      // organizer in this result set (not per-card), so the grid doesn't
+      // fire N+1 requests. Real trips-organized/completed counts, same
+      // definition as Profile's own stats.
+      const uniqueOrganizerIds = Array.from(new Set(organizerIds));
+      const { data: organizerTrips } = uniqueOrganizerIds.length
+        ? await supabase.from("trips").select("organizer_id, end_date").in("organizer_id", uniqueOrganizerIds)
+        : { data: [] as { organizer_id: string; end_date: string }[] };
+      const today = new Date().toISOString().slice(0, 10);
+      const organizedCountById = new Map<string, number>();
+      const completedCountById = new Map<string, number>();
+      (organizerTrips ?? []).forEach((t: any) => {
+        organizedCountById.set(t.organizer_id, (organizedCountById.get(t.organizer_id) ?? 0) + 1);
+        if (t.end_date < today) completedCountById.set(t.organizer_id, (completedCountById.get(t.organizer_id) ?? 0) + 1);
+      });
+
       const withGoing: Trip[] = rawTrips.map((tr) => {
         const faceIds = (approvedIdsByTrip.get(tr.id) ?? []).slice(0, 4);
+        const organizerProfile = profById.get(tr.organizer_id);
         return {
           ...tr,
-          organizer: profById.get(tr.organizer_id),
+          organizer: organizerProfile && {
+            ...organizerProfile,
+            organizedCount: organizedCountById.get(tr.organizer_id) ?? 0,
+            completedCount: completedCountById.get(tr.organizer_id) ?? 0,
+          },
           going: goingByTrip.get(tr.id) ?? 0,
           memberFaces: faceIds.map((id) => profById.get(id)).filter(Boolean) as Profile[],
           mostRecentJoinAt: mostRecentJoinByTrip.get(tr.id) ?? null,
@@ -145,6 +167,9 @@ function Discover() {
     if (sizeBucket !== "any") {
       results = results.filter((t) => tripSizeBucket(t.max_members) === sizeBucket);
     }
+    if (soloOnly) {
+      results = results.filter((t) => t.solo_friendly);
+    }
     if (filter !== "All") {
       const v = VIBE_MAP[filter.toLowerCase()] ?? filter.toLowerCase();
       results = results.filter((t) => t.vibe_tags?.includes(v));
@@ -159,9 +184,9 @@ function Discover() {
       );
     }
     return results;
-  }, [trips, selectedDestination, dateBucket, sizeBucket, filter, q]);
+  }, [trips, selectedDestination, dateBucket, sizeBucket, soloOnly, filter, q]);
 
-  const isFiltered = !!selectedDestination || dateBucket !== "any" || sizeBucket !== "any" || filter !== "All" || !!q.trim();
+  const isFiltered = !!selectedDestination || dateBucket !== "any" || sizeBucket !== "any" || soloOnly || filter !== "All" || !!q.trim();
 
   const emptyMessage = q.trim()
     ? `No trips match "${q.trim()}" — start one?`
@@ -169,7 +194,7 @@ function Discover() {
       ? `No trips to ${selectedDestination} yet — start one?`
       : isFiltered
         ? "No trips match yet — start one?"
-        : "No public trips yet. Be the first to create one.";
+        : "New to traveling with people you haven't met yet? That's kind of the whole idea here — everyone on this list started as one person looking for their people.";
 
   return (
     <div className={`${themeClassName} relative min-h-screen`}>
@@ -241,6 +266,26 @@ function Discover() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="mt-3">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink/40">Traveling solo?</p>
+                <button
+                  onClick={() => setSoloOnly((v) => !v)}
+                  className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+                    soloOnly ? "bg-primary text-cream" : "warm-card text-ink/60"
+                  }`}
+                >
+                  🧍 Solo friendly only
+                </button>
+                <p className="mt-1.5 text-[11px] text-ink/40">
+                  Solo-friendly just means the organizer's expecting people traveling alone — you (and they) still
+                  choose who actually gets approved.
+                </p>
+                <p className="mt-1 text-[11px] text-ink/40">
+                  We only ever show what you choose to share — your exact location and contact info stay private
+                  until you're approved into a trip.
+                </p>
               </div>
 
               <div className="mt-3">

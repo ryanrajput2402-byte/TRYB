@@ -84,6 +84,10 @@ const STEPS: Step[] = [
 
 function Onboarding() {
   const navigate = useNavigate();
+  // Shown once, ahead of Step 1 — this only ever runs inside the one-time
+  // signup → onboarding flow, so no extra dismissal flag is needed: the app
+  // never routes a user back here once onboarding_completed is true.
+  const [showIntro, setShowIntro] = useState(true);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Partial<QuizAnswers>>({ interests: [] });
   const [done, setDone] = useState(false);
@@ -154,6 +158,10 @@ console.log("UPSERT ERROR:", error);
   const personality = derivePersonality(answers);
   const multiSelected = (answers.interests ?? []) as string[];
   const canAdvanceMulti = step.type === "multi" && multiSelected.length >= 3;
+
+  if (showIntro) {
+    return <IntroScreen onContinue={() => setShowIntro(false)} />;
+  }
 
   return (
     <div className={`relative min-h-screen overflow-hidden bg-background transition-colors duration-700 bg-gradient-to-br ${step.gradient}`}>
@@ -232,6 +240,31 @@ console.log("UPSERT ERROR:", error);
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function IntroScreen({ onContinue }: { onContinue: () => void }) {
+  return (
+    <div className="hero-glow relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 text-center">
+      <Sparkles className="text-primary h-10 w-10" />
+      <h1 className="mt-6 max-w-lg font-display text-3xl font-bold leading-tight md:text-4xl">
+        Stop planning across five apps.
+      </h1>
+      <p className="mt-4 max-w-lg text-base text-muted-foreground">
+        WhatsApp for the group chat, a spreadsheet for the budget, a Doc for the itinerary, Instagram DMs for the
+        photos — TRYB is where all of that lives now.
+      </p>
+      <p className="mt-5 max-w-md text-sm text-muted-foreground/80">
+        TRYB isn't a dating app, and it isn't a feed to scroll — it's specifically for finding people to go on a real
+        trip with.
+      </p>
+      <button
+        onClick={onContinue}
+        className="mt-10 inline-flex items-center gap-2 rounded-full bg-primary px-10 py-4 font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition hover:scale-[1.03]"
+      >
+        Let's go <ArrowRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }

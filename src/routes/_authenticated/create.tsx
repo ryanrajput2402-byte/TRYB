@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { DESTINATIONS, INTEREST_TAGS, findDestination } from "@/lib/destinations";
 import { Link } from "@tanstack/react-router";
+import { useAppTheme } from "@/lib/theme-context";
+import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 export const Route = createFileRoute("/_authenticated/create")({
   head: () => ({ meta: [{ title: "Create a trip — TRYB" }] }),
@@ -15,6 +17,8 @@ export const Route = createFileRoute("/_authenticated/create")({
 
 function CreateTrip() {
   const navigate = useNavigate();
+  const { preference: themePreference } = useAppTheme();
+  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
   const [form, setForm] = useState({
     title: "",
     destination: "",
@@ -25,6 +29,8 @@ function CreateTrip() {
     budget_min: 500,
     budget_max: 2000,
     privacy: "public" as "public" | "private",
+    solo_friendly: false,
+    vibe_summary: "",
   });
   const [vibes, setVibes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -59,6 +65,8 @@ function CreateTrip() {
         budget_min: form.budget_min,
         budget_max: form.budget_max,
         privacy: form.privacy,
+        solo_friendly: form.solo_friendly,
+        vibe_summary: form.vibe_summary.trim() || null,
       }).select("id").single();
       if (error) throw error;
       toast.success("Trip created! 🎉");
@@ -73,87 +81,113 @@ function CreateTrip() {
   const dest = findDestination(form.destination);
 
   return (
-    <>
-      <TopBar />
-      <main className="mx-auto max-w-2xl px-5 pt-2">
-        <Link to="/home" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
-        <h1 className="mt-4 font-display text-3xl font-bold">Create a trip</h1>
-        <p className="text-sm text-muted-foreground">Rally a tribe around your next adventure.</p>
+    <div className={`${themeClassName} relative min-h-screen`}>
+      <div className="warm-aurora" aria-hidden />
+      <div className="fomo-grain" aria-hidden />
+      <div className="relative" style={{ zIndex: 2 }}>
+        <TopBar />
+        <main className="mx-auto max-w-3xl px-4 pb-10 pt-3 sm:px-6 lg:px-8">
+          <Link to="/home" className="text-ink/60 hover:text-ink inline-flex items-center gap-1.5 text-sm">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Link>
+          <h1 className="fomo-heading text-ink mt-4 text-3xl font-bold">Create a trip</h1>
+          <p className="text-sm text-ink/60">Rally a tribe around your next adventure.</p>
 
-        {dest && (
-          <div className="mt-5 overflow-hidden rounded-3xl">
-            <img src={dest.image} alt={dest.name} className="h-44 w-full object-cover" />
-          </div>
-        )}
-
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          <F label="Trip title">
-            <input className="ipt" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Sunrise hike at Mount Batur" required />
-          </F>
-          <F label="Destination">
-            <input className="ipt" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Bali, Tokyo, Lisbon…" list="destinations" required />
-            <datalist id="destinations">
-              {DESTINATIONS.map((d) => <option key={d.slug} value={d.name} />)}
-            </datalist>
-          </F>
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Start"><input type="date" className="ipt" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></F>
-            <F label="End"><input type="date" className="ipt" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required /></F>
-          </div>
-          <F label={`Max members: ${form.max_members}`}>
-            <input type="range" min={2} max={20} value={form.max_members} onChange={(e) => setForm({ ...form, max_members: Number(e.target.value) })} className="w-full accent-primary" />
-          </F>
-          <F label="Vibe tags">
-            <div className="flex flex-wrap gap-2">
-              {INTEREST_TAGS.map((t) => {
-                const a = vibes.includes(t.id);
-                return (
-                  <button key={t.id} type="button" onClick={() => toggleVibe(t.id)}
-                    className={`rounded-full border px-3 py-1.5 text-sm transition ${a ? "border-primary bg-primary text-primary-foreground" : "border-glass-border bg-surface"}`}>
-                    {t.emoji} {t.label}
-                  </button>
-                );
-              })}
+          {dest && (
+            <div className="shadow-warm mt-5 overflow-hidden rounded-3xl">
+              <img src={dest.image} alt={dest.name} className="h-44 w-full object-cover" />
             </div>
-          </F>
-          <div className="grid grid-cols-2 gap-3">
-            <F label="Budget min ($)"><input type="number" className="ipt" value={form.budget_min} onChange={(e) => setForm({ ...form, budget_min: Number(e.target.value) })} /></F>
-            <F label="Budget max ($)"><input type="number" className="ipt" value={form.budget_max} onChange={(e) => setForm({ ...form, budget_max: Number(e.target.value) })} /></F>
-          </div>
-          <F label="Description">
-            <textarea className="ipt min-h-24" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What's the plan? Who's it for?" />
-          </F>
-          <F label="Privacy">
-            <div className="flex gap-2">
-              {(["public", "private"] as const).map((p) => (
-                <button key={p} type="button" onClick={() => setForm({ ...form, privacy: p })}
-                  className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-medium capitalize transition ${
-                    form.privacy === p ? "border-primary bg-primary/10 text-primary" : "border-glass-border bg-surface"
-                  }`}>{p}</button>
-              ))}
+          )}
+
+          <form onSubmit={submit} className="mt-5 space-y-4">
+            <F label="Trip title">
+              <input className="ipt" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Sunrise hike at Mount Batur" required />
+            </F>
+            <F label="Destination">
+              <input className="ipt" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Bali, Tokyo, Lisbon…" list="destinations" required />
+              <datalist id="destinations">
+                {DESTINATIONS.map((d) => <option key={d.slug} value={d.name} />)}
+              </datalist>
+            </F>
+            <div className="grid grid-cols-2 gap-3">
+              <F label="Start"><input type="date" className="ipt" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></F>
+              <F label="End"><input type="date" className="ipt" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required /></F>
             </div>
-          </F>
+            <F label={`Max members: ${form.max_members}`}>
+              <input type="range" min={2} max={20} value={form.max_members} onChange={(e) => setForm({ ...form, max_members: Number(e.target.value) })} className="w-full accent-primary" />
+            </F>
+            <F label={`This trip's vibe in 3 words (optional) · ${form.vibe_summary.length}/40`}>
+              <input
+                className="ipt"
+                value={form.vibe_summary}
+                maxLength={40}
+                onChange={(e) => setForm({ ...form, vibe_summary: e.target.value })}
+                placeholder="Slow mornings, big views"
+              />
+            </F>
+            <F label="Vibe tags">
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_TAGS.map((t) => {
+                  const a = vibes.includes(t.id);
+                  return (
+                    <button key={t.id} type="button" onClick={() => toggleVibe(t.id)}
+                      className={`rounded-full px-3 py-1.5 text-sm transition ${a ? "bg-primary text-primary-foreground" : "warm-card text-ink/60"}`}>
+                      {t.emoji} {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </F>
+            <div className="grid grid-cols-2 gap-3">
+              <F label="Budget min ($)"><input type="number" className="ipt" value={form.budget_min} onChange={(e) => setForm({ ...form, budget_min: Number(e.target.value) })} /></F>
+              <F label="Budget max ($)"><input type="number" className="ipt" value={form.budget_max} onChange={(e) => setForm({ ...form, budget_max: Number(e.target.value) })} /></F>
+            </div>
+            <F label="Description">
+              <textarea className="ipt min-h-24" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What's the plan? Who's it for?" />
+            </F>
+            <F label="Solo travelers">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, solo_friendly: !form.solo_friendly })}
+                className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+                  form.solo_friendly ? "bg-primary/10 text-primary" : "warm-card text-ink/60"
+                }`}
+              >
+                🧍 Solo friendly {form.solo_friendly ? "— flying solo? come along" : "(off)"}
+              </button>
+              <p className="mt-1.5 text-[11px] text-ink/40">
+                Solo-friendly just means the organizer's expecting people traveling alone — you (and they) still
+                choose who actually gets approved.
+              </p>
+            </F>
+            <F label="Privacy">
+              <div className="flex gap-2">
+                {(["public", "private"] as const).map((p) => (
+                  <button key={p} type="button" onClick={() => setForm({ ...form, privacy: p })}
+                    className={`flex-1 rounded-2xl px-4 py-3 text-sm font-medium capitalize transition ${
+                      form.privacy === p ? "bg-primary/10 text-primary" : "warm-card text-ink/60"
+                    }`}>{p}</button>
+                ))}
+              </div>
+            </F>
 
-          <button type="submit" disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-semibold text-primary-foreground shadow-[var(--shadow-glow)] disabled:opacity-60">
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Launch trip
-          </button>
-        </form>
-      </main>
-      <BottomNav />
-
-      <style>{`.ipt{width:100%;border-radius:1rem;background:var(--surface);border:1px solid var(--glass-border);padding:0.85rem 1rem;color:var(--foreground);outline:none}.ipt:focus{border-color:var(--primary)}`}</style>
-    </>
+            <button type="submit" disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-semibold text-primary-foreground shadow-[var(--shadow-glow)] disabled:opacity-60">
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Launch trip
+            </button>
+          </form>
+        </main>
+        <BottomNav />
+      </div>
+    </div>
   );
 }
 
 function F({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-ink/60 mb-1.5 block text-xs font-medium">{label}</span>
       {children}
     </label>
   );

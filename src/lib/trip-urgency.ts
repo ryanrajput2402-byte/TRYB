@@ -8,6 +8,12 @@ export type TripCardProfile = {
   id: string;
   full_name: string;
   avatar_url: string | null;
+  created_at?: string;
+  // Organizer trust stats — batch-derived from real trips rows (organizer_id
+  // count + completed count), attached only where actually computed. Never
+  // fabricated: absent (undefined) rather than shown as 0 when not fetched.
+  organizedCount?: number;
+  completedCount?: number;
 };
 
 export type TripCardData = {
@@ -26,6 +32,10 @@ export type TripCardData = {
   going: number;
   memberFaces: TripCardProfile[];
   mostRecentJoinAt: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+  solo_friendly?: boolean;
+  vibe_summary?: string | null;
 };
 
 // Lower ratio = fewer spots left relative to capacity = more urgent.
@@ -134,4 +144,43 @@ export function tripSizeBucket(maxMembers: number): Exclude<SizeBucket, "any"> {
   if (maxMembers <= 4) return "small";
   if (maxMembers <= 8) return "medium";
   return "large";
+}
+
+// Cost-per-person — split against max_members (the trip's intended
+// capacity), not current confirmed count. Splitting by confirmed members
+// would swing wildly and look misleadingly expensive while a trip is still
+// filling up (e.g. $500 budget / 1 confirmed organizer = "$500pp" days
+// before 5 more people join at the intended $83pp). max_members reflects
+// what the organizer actually planned to split the cost across.
+export function costPerPerson(trip: { budget_min?: number | null; budget_max?: number | null; max_members: number }): { min: number; max: number } | null {
+  if (trip.budget_min == null || trip.budget_max == null || trip.max_members <= 0) return null;
+  return {
+    min: Math.round(trip.budget_min / trip.max_members),
+    max: Math.round(trip.budget_max / trip.max_members),
+  };
+}
+
+// Days until the trip starts — reuses the same real start_date already
+// driving momentumLabel, just exposed as a raw number so callers can build
+// their own "days until dates lock in" framing without re-deriving it.
+export function daysUntilStart(trip: { start_date: string }): number {
+  return Math.ceil((new Date(trip.start_date).getTime() - Date.now()) / 86_400_000);
+}
+
+// Real group-size progression — "started with N, now M" — derived purely
+// from trip_members.joined_at timestamps, never fabricated. "Started with"
+// means approved members who joined within the first 48 hours of trip
+// creation (the organizer's own join, plus anyone who jumped in early).
+// Returns null when there's no growth to show (flat "started with 5, now 5"
+// isn't a momentum signal) or when there's nothing before the window.
+export function groupSizeProgression(
+  trip: { created_at: string },
+  approvedJoinTimestamps: string[],
+): { initial: number; current: number } | null {
+  const createdMs = new Date(trip.created_at).getTime();
+  const windowMs = createdMs + 48 * 3_600_000;
+  const initial = approvedJoinTimestamps.filter((t) => new Date(t).getTime() <= windowMs).length;
+  const current = approvedJoinTimestamps.length;
+  if (initial <= 0 || current <= initial) return null;
+  return { initial, current };
 }

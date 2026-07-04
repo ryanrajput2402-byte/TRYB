@@ -5,7 +5,7 @@ import { useInView } from "@/lib/use-in-view";
 import { DESTINATIONS, vibeTint } from "@/lib/destinations";
 import { formatCompactRange } from "@/lib/format-date";
 import { trackEvent } from "@/lib/analytics";
-import { TripCardData, urgencyBadge, momentumLabel, keyoTeaser } from "@/lib/trip-urgency";
+import { TripCardData, urgencyBadge, momentumLabel, keyoTeaser, costPerPerson } from "@/lib/trip-urgency";
 import { Bookmark, BookmarkCheck, Sparkles } from "lucide-react";
 
 // Shared real-data trip card — Home's planning feed (featured hero + grid)
@@ -44,6 +44,7 @@ export function PlannedTripCard({
   const momentum = momentumLabel(trip);
   const isFull = trip.going >= trip.max_members;
   const shouldShowOrganizer = showOrganizer ?? featured;
+  const pp = costPerPerson(trip);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -152,10 +153,25 @@ export function PlannedTripCard({
         {featured && (
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">Most urgent right now</p>
         )}
-        <h3 className={`fomo-heading font-bold leading-tight text-white drop-shadow ${featured ? "text-3xl sm:text-4xl" : "text-xl"}`}>
-          {trip.destination}
-        </h3>
-        <p className={`mt-0.5 text-white/70 ${featured ? "text-sm" : "text-xs"}`}>{dateRange}</p>
+        <div className="flex items-center gap-1.5">
+          <h3 className={`fomo-heading font-bold leading-tight text-white drop-shadow ${featured ? "text-3xl sm:text-4xl" : "text-xl"}`}>
+            {trip.destination}
+          </h3>
+          {trip.solo_friendly && (
+            <span className={`shrink-0 rounded-full bg-teal/85 font-semibold text-black ${featured ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[9px]"}`}>
+              🧍 Solo
+            </span>
+          )}
+        </div>
+        <p className={`mt-0.5 text-white/70 ${featured ? "text-sm" : "text-xs"}`}>
+          {dateRange}
+          {pp && <span className="text-white/50"> · ~${pp.min}–{pp.max}/person</span>}
+        </p>
+        {trip.vibe_summary && (
+          <p className={`mt-1 line-clamp-1 font-medium text-white/85 ${featured ? "text-sm" : "text-[11px]"}`}>
+            ✨ {trip.vibe_summary}
+          </p>
+        )}
         {featured && trip.description && (
           <p className="mt-1.5 line-clamp-1 text-xs text-white/70">"{trip.description}"</p>
         )}
@@ -191,6 +207,15 @@ export function PlannedTripCard({
           {shouldShowOrganizer && trip.organizer?.full_name && (
             <span className={`text-white/80 ${featured ? "text-xs" : "text-[11px]"}`}>
               <span className="text-white/50">Organizer</span> {trip.organizer.full_name.split(" ")[0]}
+              {typeof trip.organizer.organizedCount === "number" && (
+                <span className="text-white/50">
+                  {" "}
+                  · {trip.organizer.organizedCount} organized
+                  {typeof trip.organizer.completedCount === "number" && trip.organizer.completedCount > 0
+                    ? `, ${trip.organizer.completedCount} completed`
+                    : ""}
+                </span>
+              )}
             </span>
           )}
         </div>

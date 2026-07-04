@@ -411,9 +411,11 @@ export type Database = {
           max_members: number
           organizer_id: string
           privacy: string
+          solo_friendly: boolean
           start_date: string
           title: string
           updated_at: string
+          vibe_summary: string | null
           vibe_tags: string[] | null
         }
         Insert: {
@@ -430,9 +432,11 @@ export type Database = {
           max_members?: number
           organizer_id: string
           privacy?: string
+          solo_friendly?: boolean
           start_date: string
           title: string
           updated_at?: string
+          vibe_summary?: string | null
           vibe_tags?: string[] | null
         }
         Update: {
@@ -449,9 +453,11 @@ export type Database = {
           max_members?: number
           organizer_id?: string
           privacy?: string
+          solo_friendly?: boolean
           start_date?: string
           title?: string
           updated_at?: string
+          vibe_summary?: string | null
           vibe_tags?: string[] | null
         }
         Relationships: []

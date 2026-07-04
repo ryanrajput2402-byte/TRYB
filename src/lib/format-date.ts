@@ -12,6 +12,12 @@ export function formatCompactRange(startISO: string, endISO: string) {
   return sameMonth ? `${format(start, "MMM d")}–${format(end, "d")}` : `${format(start, "MMM d")}–${format(end, "MMM d")}`;
 }
 
+// "Member since Mar 2026" — used anywhere a profile's created_at is shown as
+// a trust signal (organizer cards, profile page, join-request review).
+export function formatMemberSince(iso: string): string {
+  return `Member since ${format(new Date(iso), "MMM yyyy")}`;
+}
+
 // Relative time, e.g. "just now" / "2h ago" / "3d ago". Only meaningful for
 // genuinely recent timestamps — callers should decide their own cutoff for
 // when "ago" phrasing stops being useful and fall back to an absolute date.
