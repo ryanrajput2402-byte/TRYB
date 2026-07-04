@@ -17,6 +17,7 @@ import { useAppTheme } from "@/lib/theme-context";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { costPerPerson, daysUntilStart, groupSizeProgression } from "@/lib/trip-urgency";
 import { formatMemberSince } from "@/lib/format-date";
+import { trackEvent } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/trip/$tripId")({
   head: () => ({ meta: [{ title: "Trip — TRYB" }] }),
@@ -107,6 +108,7 @@ function TripDetail() {
         trip_id: tripId, user_id: me.id, status: "pending", role: "member",
       });
       if (error) throw error;
+      trackEvent({ name: "join_request_submitted", tripId });
       toast.success("Request sent ✓");
       refresh();
     } catch (err) {
@@ -260,7 +262,10 @@ function TripDetail() {
                 <>
                   <p className="mb-2 text-center text-xs text-ink/60">{spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left</p>
                   <button
-                    onClick={() => (isFirstEverRequest ? setShowFirstRequestIntro(true) : requestToJoin())}
+                    onClick={() => {
+                      trackEvent({ name: "join_request_started", tripId, isFirstEver: isFirstEverRequest });
+                      isFirstEverRequest ? setShowFirstRequestIntro(true) : requestToJoin();
+                    }}
                     disabled={requesting || spotsLeft <= 0}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50"
                   >
@@ -283,7 +288,10 @@ function TripDetail() {
               setShowFirstRequestIntro(false);
               requestToJoin();
             }}
-            onCancel={() => setShowFirstRequestIntro(false)}
+            onCancel={() => {
+              trackEvent({ name: "join_request_cancelled", tripId });
+              setShowFirstRequestIntro(false);
+            }}
           />
         )}
 

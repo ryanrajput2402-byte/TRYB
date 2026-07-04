@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { PlannedTripCard } from "@/components/planned-trip-card";
 import { DestinationChipRow } from "@/components/destination-chips";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
+import { trackEvent } from "@/lib/analytics";
 import { DESTINATIONS } from "@/lib/destinations";
 import {
   TripCardData as Trip,
@@ -229,7 +230,10 @@ function Discover() {
                   <DestinationChipRow
                     options={destinationOptions}
                     selected={selectedDestination}
-                    onSelect={setSelectedDestination}
+                    onSelect={(next) => {
+                      setSelectedDestination(next);
+                      trackEvent({ name: "discover_filter_used", filterType: "destination", value: next ?? "all" });
+                    }}
                   />
                 </div>
               )}
@@ -240,7 +244,10 @@ function Discover() {
                   {DATE_BUCKETS.map((b) => (
                     <button
                       key={b.id}
-                      onClick={() => setDateBucket(b.id)}
+                      onClick={() => {
+                        setDateBucket(b.id);
+                        trackEvent({ name: "discover_filter_used", filterType: "date", value: b.id });
+                      }}
                       className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                         dateBucket === b.id ? "bg-primary text-cream" : "warm-card text-ink/60"
                       }`}
@@ -257,7 +264,10 @@ function Discover() {
                   {SIZE_BUCKETS.map((b) => (
                     <button
                       key={b.id}
-                      onClick={() => setSizeBucket(b.id)}
+                      onClick={() => {
+                        setSizeBucket(b.id);
+                        trackEvent({ name: "discover_filter_used", filterType: "size", value: b.id });
+                      }}
                       className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                         sizeBucket === b.id ? "bg-primary text-cream" : "warm-card text-ink/60"
                       }`}
@@ -271,7 +281,12 @@ function Discover() {
               <div className="mt-3">
                 <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink/40">Traveling solo?</p>
                 <button
-                  onClick={() => setSoloOnly((v) => !v)}
+                  onClick={() => {
+                    const next = !soloOnly;
+                    setSoloOnly(next);
+                    trackEvent({ name: "discover_filter_used", filterType: "solo", value: String(next) });
+                    trackEvent({ name: "solo_filter_toggled", enabled: next });
+                  }}
                   className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                     soloOnly ? "bg-primary text-cream" : "warm-card text-ink/60"
                   }`}
@@ -294,7 +309,10 @@ function Discover() {
                   {FILTERS.map((f) => (
                     <button
                       key={f}
-                      onClick={() => setFilter(f)}
+                      onClick={() => {
+                        setFilter(f);
+                        trackEvent({ name: "discover_filter_used", filterType: "vibe", value: f });
+                      }}
                       className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
                         filter === f ? "bg-primary text-cream" : "warm-card text-ink/60"
                       }`}
