@@ -1,5 +1,8 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { useThemePreference } from "@/lib/use-theme-preference";
+import { ThemeContext } from "@/lib/theme-context";
+import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -38,9 +41,14 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
+  const { user } = Route.useRouteContext();
+  const theme = useThemePreference(user.id);
+  const themeClassName = seasonThemeClassName(theme.preference ?? DEFAULT_SEASON_THEME);
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Outlet />
-    </div>
+    <ThemeContext.Provider value={theme}>
+      <div className={`${themeClassName} min-h-screen bg-background pb-24`}>
+        <Outlet />
+      </div>
+    </ThemeContext.Provider>
   );
 }

@@ -4,8 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { LogOut, Settings, MapPin, X, Loader as Loader2, Camera } from "lucide-react";
+import { LogOut, Settings, MapPin, X, Loader as Loader2, Camera, Palette, ChevronRight } from "lucide-react";
 import { DESTINATIONS, INTEREST_TAGS } from "@/lib/destinations";
+import { useAppTheme } from "@/lib/theme-context";
+import { SEASON_THEMES, DEFAULT_SEASON_THEME } from "@/lib/seasonal-themes";
+import { ThemePickerModal } from "@/components/theme-picker-modal";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -27,6 +30,9 @@ export const Route = createFileRoute("/_authenticated/profile")({
 
 function ProfilePage() {
   const navigate = useNavigate();
+  const { preference: themePreference, choose: chooseTheme } = useAppTheme();
+  const currentSeason = SEASON_THEMES.find((t) => t.id === (themePreference ?? DEFAULT_SEASON_THEME))!;
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
   const [savedTrips, setSavedTrips] = useState<any[]>([]);
@@ -125,6 +131,22 @@ setSavedTrips((savedRes.data ?? []).map((r: any) => r.trips).filter(Boolean));  
             </button>
           </div>
 
+          {/* Subtle settings-style row, not a promotional banner — the one
+              consistent place to change the app's seasonal theme. */}
+          <button
+            type="button"
+            onClick={() => setThemePickerOpen(true)}
+            className="glass-card mt-3 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm transition hover:bg-surface-elevated"
+          >
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Palette className="h-4 w-4" /> Vibe
+            </span>
+            <span className="flex items-center gap-1 font-medium text-foreground">
+              {currentSeason.label}
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+          </button>
+
           <div className="mt-6 flex border-b border-glass-border">
             {(["trips", "saved"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
@@ -158,6 +180,16 @@ setSavedTrips((savedRes.data ?? []).map((r: any) => r.trips).filter(Boolean));  
           profile={profile}
           onClose={() => setEditOpen(false)}
           onSave={(updated) => { setProfile(updated); setEditOpen(false); }}
+        />
+      )}
+
+      {themePickerOpen && (
+        <ThemePickerModal
+          onChoose={(id) => {
+            chooseTheme(id);
+            setThemePickerOpen(false);
+          }}
+          onDismiss={() => setThemePickerOpen(false)}
         />
       )}
     </>

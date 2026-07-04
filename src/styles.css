@@ -10,11 +10,34 @@
 @import "@fontsource/inter/600.css";
 @import "@fontsource/inter/700.css";
 
+/* FOMO design language (Stage 1+) — additive, opt-in via .fomo-theme so existing
+   screens keep the amber/Syne look untouched until they migrate in a later stage. */
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* FOMO design language */
+  --font-display-fomo: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans-fomo: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-void: var(--void-bg);
+  --color-indigo: var(--indigo);
+  --color-teal: var(--teal);
+
+  /* AUTUMN — see :root for values/scoping notes */
+  --color-sand: var(--sand-bg);
+  --color-cream: var(--cream);
+  --color-pine: var(--pine);
+  --color-clay: var(--clay);
+  --color-ink: var(--warm-ink);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -89,6 +112,44 @@
   --gradient-hero: radial-gradient(at 30% 20%, oklch(0.78 0.155 70 / 0.35), transparent 60%),
                    radial-gradient(at 70% 80%, oklch(0.72 0.18 22 / 0.3), transparent 60%);
   --shadow-glow: 0 20px 60px -20px oklch(0.78 0.155 70 / 0.5);
+
+  /* FOMO design language (Stage 1+) — indigo-to-teal on void-black */
+  --void-bg: oklch(0.14 0.02 264);        /* #080B14 */
+  --indigo: oklch(0.56 0.24 280);         /* #4F46E5-ish */
+  --teal: oklch(0.75 0.14 195);           /* #2DD4BF-ish */
+  --void-surface: oklch(0.19 0.025 264);
+  --void-surface-elevated: oklch(0.23 0.03 264);
+  --void-border: oklch(1 0 0 / 0.09);
+  --gradient-fomo: linear-gradient(120deg, var(--indigo), var(--teal));
+  --gradient-fomo-radial: radial-gradient(at 20% 0%, oklch(0.56 0.24 280 / 0.35), transparent 55%),
+                          radial-gradient(at 85% 30%, oklch(0.75 0.14 195 / 0.25), transparent 55%);
+  --shadow-glow-fomo: 0 20px 60px -20px oklch(0.56 0.24 280 / 0.45);
+
+  /* AUTUMN design language — light-first, chat screen only for now.
+     Additive/inert everywhere else: nothing existing references these names,
+     so defining them here doesn't change any other screen's appearance.
+     Applied via .autumn-theme, the scoped wrapper used only in
+     GroupChat.tsx (mirrors how .fomo-theme opts individual screens in).
+
+     These names are ROLE slots (background / surface / primary accent /
+     secondary accent / ink), not literal colors — chat theme variants below
+     (.summer-theme, etc.) redeclare the same variable names with
+     different values so the exact same JSX/utility classes render every
+     variant. This block is Warm Earth's default (root-level) value for each
+     slot and must not change — other variants override it on their own
+     scoped wrapper class only, never here. */
+  --sand-bg: oklch(0.96 0.016 78);         /* warm off-white / soft sand, not paper-white */
+  --cream: oklch(0.985 0.008 80);          /* slightly lighter warm surface for elevated cards */
+  --pine: oklch(0.34 0.07 152);            /* deep forest green — primary/trust accent */
+  --clay: oklch(0.62 0.13 40);             /* terracotta — warm secondary accent */
+  --warm-ink: oklch(0.28 0.02 55);         /* warm charcoal-brown text, never blue-grey */
+  --warm-card-bg: oklch(0.985 0.008 80 / 0.85);
+  --warm-card-border: oklch(0.28 0.02 55 / 0.08);
+  --shadow-warm: 0 10px 30px -14px oklch(0.32 0.08 50 / 0.16);
+  --shadow-warm-sm: 0 2px 10px -4px oklch(0.32 0.08 50 / 0.14);
+  --gradient-earth: linear-gradient(120deg, var(--pine), var(--clay));
+  --gradient-earth-soft: linear-gradient(120deg, oklch(0.34 0.07 152 / 0.5), oklch(0.62 0.13 40 / 0.5));
+  --keyo-glow-shadow: 0 4px 20px -12px oklch(0.34 0.07 152 / 0.22);
 }
 
 .dark {
@@ -133,6 +194,308 @@
 @utility hero-glow {
   background: var(--gradient-hero);
 }
+
+/* FOMO design language utilities (Stage 1+) */
+@utility fomo-theme {
+  background-color: var(--void-bg);
+  color: oklch(0.985 0 0);
+  font-family: var(--font-sans-fomo);
+  /* Recolor shared chrome (BottomNav FAB, TopBar logo) that renders inside this
+     subtree, without editing those shared component files — cascades only to
+     descendants of whatever element carries this class. */
+  --primary: var(--indigo);
+  --primary-foreground: oklch(0.985 0 0);
+  --gradient-warm: var(--gradient-fomo);
+  --shadow-glow: var(--shadow-glow-fomo);
+}
+@utility fomo-heading {
+  font-family: var(--font-display-fomo);
+  letter-spacing: -0.02em;
+}
+@utility text-gradient-fomo {
+  background: var(--gradient-fomo);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility bg-gradient-fomo {
+  background: var(--gradient-fomo);
+}
+@utility hero-glow-fomo {
+  background: var(--gradient-fomo-radial);
+}
+@utility glass-card-fomo {
+  background: oklch(0.19 0.025 264 / 0.6);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--void-border);
+}
+@utility shadow-elevated-fomo {
+  box-shadow: 0 12px 40px -12px oklch(0.56 0.24 280 / 0.35);
+}
+
+/* AUTUMN utilities — scoped to chat via .autumn-theme wrapper.
+   Same additive pattern as the FOMO block above: new names, nothing else
+   in the app references them, so they're inert everywhere but chat. */
+@utility autumn-theme {
+  /* Home-screen extension: ambient background wash + hero-level glow, both
+     primary-tinted (forest green), used by warm-aurora/hero-glow-warm and
+     the featured trip card. --shadow-glow feeds bottom-nav's FAB directly
+     (bottom-nav.tsx already reads that variable — no edits needed there). */
+  --ambient-radial: radial-gradient(at 20% 0%, oklch(0.62 0.13 40 / 0.16), transparent 55%),
+                     radial-gradient(at 85% 30%, oklch(0.34 0.07 152 / 0.12), transparent 55%);
+  --shadow-glow-warm: 0 20px 60px -20px oklch(0.34 0.07 152 / 0.3);
+  --shadow-glow-warm-peak: 0 26px 72px -16px oklch(0.34 0.07 152 / 0.45);
+
+  background-color: var(--sand-bg);
+  color: var(--warm-ink);
+  font-family: var(--font-sans-fomo);
+  --primary: var(--pine);
+  --primary-foreground: var(--cream);
+  --ring: var(--pine);
+  --shadow-glow: var(--shadow-glow-warm);
+}
+@utility warm-card {
+  background: var(--warm-card-bg);
+  backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--warm-card-border);
+}
+@utility shadow-warm {
+  box-shadow: var(--shadow-warm);
+}
+@utility shadow-warm-sm {
+  box-shadow: var(--shadow-warm-sm);
+}
+@utility text-gradient-earth {
+  background: var(--gradient-earth);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Home-screen ambient background wash, per-season tinted via --ambient-radial
+   (defined inside each season theme block above). Kept as a separate class
+   from .fomo-aurora (still used nowhere now, left in place harmlessly)
+   rather than repointing that one, so nothing else can be affected. */
+@utility warm-aurora {
+  position: fixed;
+  inset: -15%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--ambient-radial);
+  filter: blur(80px);
+  opacity: 0.8;
+  animation: aurora-drift 28s ease-in-out infinite;
+}
+@utility hero-glow-warm {
+  background: var(--ambient-radial);
+}
+
+/* SUMMER — second chat theme variant, dev preview only (theme switcher).
+   Redeclares the exact same role-slot variable names Warm Earth uses
+   (--sand-bg/--cream/--pine/--clay/--warm-ink/etc.), scoped to this class
+   only — Warm Earth's :root values above are untouched, so switching back
+   to Warm Earth renders byte-for-byte the same as before this change. */
+@utility summer-theme {
+  --sand-bg: oklch(0.975 0.018 68);            /* warm cream, lighter/warmer than Warm Earth's sand */
+  --cream: oklch(0.99 0.01 68);
+  /* Note the slot/color pairing is intentionally swapped vs. Warm Earth: the
+     shared GroupChat.tsx JSX hardcodes bg-clay/text-clay for own-message
+     bubbles + poll/expense micro-labels, and bg-pine/text-pine for vote-bars
+     + checkmarks + CTAs. The Golden Hour spec wants those first two coral
+     and the second two teal — so --clay carries coral and --pine carries
+     teal here, even though the variable *names* still read the other way
+     round. Same trick as Warm Earth reusing "pine"/"clay" as role slots. */
+  --pine: oklch(0.62 0.08 195);                 /* muted teal — feeds the vote-bar/checkmark/CTA slot */
+  --clay: oklch(0.65 0.19 35);                  /* coral / sunset-orange — feeds the own-message/micro-label slot */
+  --warm-ink: oklch(0.3 0.03 45);
+  --warm-card-bg: oklch(0.99 0.01 68 / 0.85);
+  --warm-card-border: oklch(0.3 0.03 45 / 0.08);
+  --shadow-warm: 0 10px 30px -14px oklch(0.6 0.17 35 / 0.18);
+  --shadow-warm-sm: 0 2px 10px -4px oklch(0.6 0.17 35 / 0.15);
+  --gradient-earth: linear-gradient(120deg, var(--pine), var(--clay));
+  --gradient-earth-soft: linear-gradient(120deg, oklch(0.65 0.19 35 / 0.5), oklch(0.62 0.08 195 / 0.5));
+  --keyo-glow-shadow: 0 4px 20px -12px oklch(0.65 0.19 35 / 0.22);
+  /* Home extension: coral + a warm gold (not the cooler teal secondary) —
+     matches the "golden energy" mood better than reusing teal in a full-screen wash. */
+  --ambient-radial: radial-gradient(at 20% 0%, oklch(0.65 0.19 35 / 0.18), transparent 55%),
+                     radial-gradient(at 85% 30%, oklch(0.78 0.12 80 / 0.14), transparent 55%);
+  --shadow-glow-warm: 0 20px 60px -20px oklch(0.65 0.19 35 / 0.35);
+  --shadow-glow-warm-peak: 0 26px 72px -16px oklch(0.65 0.19 35 / 0.5);
+
+  background-color: var(--sand-bg);
+  color: var(--warm-ink);
+  font-family: var(--font-sans-fomo);
+  /* --clay (not --pine) holds coral here — see the slot-swap note above. */
+  --primary: var(--clay);
+  --primary-foreground: var(--cream);
+  --ring: var(--clay);
+  --shadow-glow: var(--shadow-glow-warm);
+}
+
+/* WINTER — third chat theme variant, dev preview only (theme switcher).
+   Same role-slot pattern as Warm Earth/Golden Hour, but --pine and --clay
+   are BOTH set to the same muted sapphire here (rather than split across
+   two colors like Golden Hour's coral/teal) — the spec explicitly wants
+   micro-labels, vote-bars, and own-messages all in one sapphire, with the
+   warm-neutral/sand secondary reserved for the Keyo gradient and shadow
+   warmth rather than a second competing UI color. Fewer colors reads calmer. */
+@utility winter-theme {
+  --sand-bg: oklch(0.975 0.01 235);              /* soft airy off-white, faint pale-blue undertone */
+  --cream: oklch(0.99 0.006 235);
+  --pine: oklch(0.5 0.09 258);                    /* muted sapphire / dusty blue — primary accent */
+  --clay: oklch(0.5 0.09 258);                    /* same sapphire — feeds the own-message/micro-label slot */
+  --warm-ink: oklch(0.28 0.02 50);                /* warm dark neutral, never blue-grey, even here */
+  --warm-card-bg: oklch(0.99 0.006 235 / 0.85);
+  --warm-card-border: oklch(0.28 0.02 50 / 0.07);
+  --shadow-warm: 0 10px 30px -14px oklch(0.5 0.03 70 / 0.14);      /* warm sand-tinted, not blue-tinted */
+  --shadow-warm-sm: 0 2px 10px -4px oklch(0.5 0.03 70 / 0.12);
+  /* Explicit literal (not the var(--pine)/var(--clay) formula) so the
+     gradient actually shows two colors — sapphire to warm sand — instead of
+     flattening to one, since --pine and --clay are equal in this theme. */
+  --gradient-earth: linear-gradient(120deg, oklch(0.5 0.09 258), oklch(0.78 0.03 75));
+  --gradient-earth-soft: linear-gradient(120deg, oklch(0.5 0.09 258 / 0.5), oklch(0.78 0.03 75 / 0.5));
+  --keyo-glow-shadow: 0 4px 20px -12px oklch(0.5 0.09 258 / 0.22);
+  /* Home extension: sapphire + a hint of warm sand, never fully cold. */
+  --ambient-radial: radial-gradient(at 20% 0%, oklch(0.5 0.09 258 / 0.16), transparent 55%),
+                     radial-gradient(at 85% 30%, oklch(0.78 0.03 75 / 0.1), transparent 55%);
+  --shadow-glow-warm: 0 20px 60px -20px oklch(0.5 0.09 258 / 0.3);
+  --shadow-glow-warm-peak: 0 26px 72px -16px oklch(0.5 0.09 258 / 0.45);
+
+  background-color: var(--sand-bg);
+  color: var(--warm-ink);
+  font-family: var(--font-sans-fomo);
+  --primary: var(--pine);
+  --primary-foreground: var(--cream);
+  --ring: var(--pine);
+  --shadow-glow: var(--shadow-glow-warm);
+}
+
+/* SPRING — fourth chat theme variant. Same split-slot pattern as Summer
+   (two distinct accents rather than Winter's single unified one): --clay
+   carries sage (primary — own-messages, micro-labels) and --pine carries
+   blossom-pink (secondary — vote-bars, checkmarks, CTAs), matching the
+   spec's "sage micro-labels, blossom-pink secondary accents" split. */
+@utility spring-theme {
+  --sand-bg: oklch(0.975 0.012 120);              /* soft off-white, faint warm-green undertone */
+  --cream: oklch(0.99 0.008 120);
+  --pine: oklch(0.72 0.09 18);                     /* soft blossom pink — secondary, feeds vote-bar/checkmark/CTA slot */
+  --clay: oklch(0.62 0.09 128);                    /* sage / fresh green — primary, feeds own-message/micro-label slot */
+  --warm-ink: oklch(0.28 0.02 60);
+  --warm-card-bg: oklch(0.99 0.008 120 / 0.85);
+  --warm-card-border: oklch(0.28 0.02 60 / 0.07);
+  --shadow-warm: 0 10px 30px -14px oklch(0.55 0.06 110 / 0.15);
+  --shadow-warm-sm: 0 2px 10px -4px oklch(0.55 0.06 110 / 0.13);
+  --gradient-earth: linear-gradient(120deg, oklch(0.62 0.09 128), oklch(0.72 0.09 18));
+  --gradient-earth-soft: linear-gradient(120deg, oklch(0.62 0.09 128 / 0.5), oklch(0.72 0.09 18 / 0.5));
+  --keyo-glow-shadow: 0 4px 20px -12px oklch(0.62 0.09 128 / 0.22);
+  /* Home extension: sage + blossom-pink, fresh and light. */
+  --ambient-radial: radial-gradient(at 20% 0%, oklch(0.62 0.09 128 / 0.16), transparent 55%),
+                     radial-gradient(at 85% 30%, oklch(0.72 0.09 18 / 0.14), transparent 55%);
+  --shadow-glow-warm: 0 20px 60px -20px oklch(0.62 0.09 128 / 0.3);
+  --shadow-glow-warm-peak: 0 26px 72px -16px oklch(0.62 0.09 128 / 0.45);
+
+  background-color: var(--sand-bg);
+  color: var(--warm-ink);
+  font-family: var(--font-sans-fomo);
+  --primary: var(--clay);
+  --primary-foreground: var(--cream);
+  --ring: var(--clay);
+  --shadow-glow: var(--shadow-glow-warm);
+}
+
+/* Slow breathing pulse — item 2. Was a hard "ping" blink before; this is a
+   smooth ease-in-out opacity+scale cycle instead. */
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+.animate-breathe { animation: breathe 2s ease-in-out infinite; }
+
+/* Still used for "filling up" urgency badges — a faster, more insistent pulse
+   than the calm breathing live-dot, intentionally different rhythm. */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-live { animation: pulse-live 1.6s ease-in-out infinite; }
+
+/* Ambient aurora — item 3. A large, heavily blurred gradient blob drifting
+   slowly behind the content. Fixed + pointer-events:none so it never
+   intercepts clicks or affects layout. */
+@keyframes aurora-drift {
+  0%, 100% { transform: translate(-6%, -4%) scale(1); }
+  33% { transform: translate(4%, 6%) scale(1.12); }
+  66% { transform: translate(2%, -6%) scale(1.05); }
+}
+.fomo-aurora {
+  position: fixed;
+  inset: -15%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--gradient-fomo-radial);
+  filter: blur(80px);
+  opacity: 0.8;
+  animation: aurora-drift 28s ease-in-out infinite;
+}
+
+/* Grain — item 3. Subtle noise overlay to kill the flat "digital void" look. */
+.fomo-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Heartbeat glow — item 4/28. Subtle intensity pulse on the featured card's
+   ring, distinct from the badge pulse (slower, gentler). */
+@keyframes heartbeat-glow {
+  0%, 100% { box-shadow: 0 20px 60px -20px oklch(0.56 0.24 280 / 0.45); }
+  50% { box-shadow: 0 26px 72px -16px oklch(0.56 0.24 280 / 0.68); }
+}
+.animate-heartbeat-glow { animation: heartbeat-glow 3.2s ease-in-out infinite; }
+
+/* Same pulse, parameterized per season via --shadow-glow-warm/-peak (defined
+   in each season theme block) instead of the hardcoded indigo values above. */
+@keyframes heartbeat-glow-warm {
+  0%, 100% { box-shadow: var(--shadow-glow-warm); }
+  50% { box-shadow: var(--shadow-glow-warm-peak); }
+}
+.animate-heartbeat-glow-warm { animation: heartbeat-glow-warm 3.2s ease-in-out infinite; }
+
+/* Item 24/33: branded shimmer skeleton — indigo-teal sweep instead of a flat pulse. */
+@keyframes shimmer-fomo {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+.skeleton-fomo {
+  background: linear-gradient(
+    100deg,
+    oklch(0.19 0.025 264) 30%,
+    oklch(0.27 0.05 260) 50%,
+    oklch(0.19 0.025 264) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-fomo 1.8s ease-in-out infinite;
+}
+
+/* Item 26: scroll-triggered reveal */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal-hidden { opacity: 0; }
+.reveal-shown { animation: reveal-up 0.5s ease-out both; }
+
+/* Item 25: tactile save bounce */
+@keyframes save-bounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  60% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.animate-save-bounce { animation: save-bounce 0.4s ease-out; }
 
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
