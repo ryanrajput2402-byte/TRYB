@@ -375,6 +375,7 @@ export type Database = {
           interests: string[] | null
           location: string | null
           onboarding_completed: boolean
+          onboarding_intro_seen: boolean
           response_time_expectation: string | null
           travel_personality: string | null
           travel_style: string | null
@@ -396,6 +397,7 @@ export type Database = {
           interests?: string[] | null
           location?: string | null
           onboarding_completed?: boolean
+          onboarding_intro_seen?: boolean
           response_time_expectation?: string | null
           travel_personality?: string | null
           travel_style?: string | null
@@ -417,6 +419,7 @@ export type Database = {
           interests?: string[] | null
           location?: string | null
           onboarding_completed?: boolean
+          onboarding_intro_seen?: boolean
           response_time_expectation?: string | null
           travel_personality?: string | null
           travel_style?: string | null

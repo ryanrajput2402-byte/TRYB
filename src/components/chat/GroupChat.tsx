@@ -1312,7 +1312,7 @@ function MessageRow({
               {senderName}
               {isKeyo && (
                 <span className="font-normal normal-case tracking-normal text-ink/35">
-                  · AI assistant
+                  · in this chat
                 </span>
               )}
             </p>
