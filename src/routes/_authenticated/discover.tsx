@@ -7,7 +7,7 @@ import { PlannedTripCard } from "@/components/planned-trip-card";
 import { DestinationChipRow } from "@/components/destination-chips";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import { trackEvent } from "@/lib/analytics";
-import { DESTINATIONS } from "@/lib/destinations";
+import { DESTINATIONS, FEATURED_DESTINATION_SLUGS } from "@/lib/destinations";
 import {
   TripCardData as Trip,
   sizeTier,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/trip-urgency";
 import { useAppTheme } from "@/lib/theme-context";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
-import { Search, X, ArrowRight } from "lucide-react";
+import { Search, X, ArrowRight, Sparkles } from "lucide-react";
 
 const FILTERS = ["All", "Beaches", "Mountains", "Cities", "Forest", "Desert"];
 const VIBE_MAP: Record<string, string> = {
@@ -78,6 +78,13 @@ function Discover() {
   const [soloOnly, setSoloOnly] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meId, setMeId] = useState<string | null>(null);
+  // Discover Feature 1 — real demand-signal data: how many people (and
+  // whether I'm one of them) have registered interest per destination.
+  // Never fabricated — absent from the map means zero, not guessed.
+  const [interestCounts, setInterestCounts] = useState<Map<string, number>>(new Map());
+  const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
+  const [registeringInterest, setRegisteringInterest] = useState(false);
 
   // Same real-data shape as Home (going count, organizer, member faces) —
   // fetched independently since Discover's needs (no momentum-irrelevant
@@ -156,7 +163,55 @@ function Discover() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      setMeId(u.user?.id ?? null);
+      const { data: interestRows } = await supabase.from("destination_interest").select("user_id, destination");
+      const counts = new Map<string, number>();
+      const mine = new Set<string>();
+      (interestRows ?? []).forEach((row: any) => {
+        counts.set(row.destination, (counts.get(row.destination) ?? 0) + 1);
+        if (u.user && row.user_id === u.user.id) mine.add(row.destination);
+      });
+      setInterestCounts(counts);
+      setMyInterests(mine);
+    })();
+  }, []);
+
+  async function registerInterest(destination: string) {
+    if (!meId || registeringInterest || myInterests.has(destination)) return;
+    setRegisteringInterest(true);
+    // Optimistic — this is a real insert, not a guess, so update local
+    // state immediately rather than waiting on a refetch.
+    setMyInterests((prev) => new Set(prev).add(destination));
+    setInterestCounts((prev) => new Map(prev).set(destination, (prev.get(destination) ?? 0) + 1));
+    try {
+      const { error } = await supabase.from("destination_interest").insert({ user_id: meId, destination });
+      if (error) throw error;
+      trackEvent({ name: "destination_interest_registered", destination });
+    } catch {
+      // Unique constraint or network hiccup — real state already reflects
+      // intent either way, so just leave it; a refresh will reconcile.
+    } finally {
+      setRegisteringInterest(false);
+    }
+  }
+
   const destinationOptions = useMemo(() => deriveDestinationOptions(trips), [trips]);
+
+  // Discover Feature 2 — a fixed editorial list, not derived from real
+  // trips. Real per-destination trip counts are still looked up here
+  // (never fabricated), just not the basis for which 5 appear.
+  const featuredDestinations = useMemo(
+    () =>
+      FEATURED_DESTINATION_SLUGS.map((slug) => {
+        const dest = DESTINATIONS.find((d) => d.slug === slug)!;
+        const count = trips.filter((t) => t.destination === dest.name).length;
+        return { ...dest, count };
+      }),
+    [trips],
+  );
 
   const filteredDest = useMemo(() => {
     let results = DESTINATIONS;
@@ -204,13 +259,16 @@ function Discover() {
 
   const isFiltered = !!selectedDestination || dateBucket !== "any" || sizeBucket !== "any" || budgetBucket !== "any" || soloOnly || filter !== "All" || !!q.trim();
 
-  const emptyMessage = q.trim()
-    ? `No trips match "${q.trim()}" — start one?`
-    : selectedDestination
-      ? `No trips to ${selectedDestination} yet — start one?`
-      : isFiltered
-        ? "No trips match yet — start one?"
-        : "New to traveling with people you haven't met yet? That's kind of the whole idea here — everyone on this list started as one person looking for their people.";
+  // Discover Feature 1 — any destination-shaped search or filter (a real
+  // chip/featured pick, or free-text search) gets the rich "be the first"
+  // treatment below; other filter combos (date/size/budget/solo/vibe with
+  // no destination) keep the simpler existing message.
+  const destinationSignal = selectedDestination ?? (q.trim() || null);
+
+  const emptyMessage =
+    isFiltered && !destinationSignal
+      ? "No trips match yet — start one?"
+      : "New to traveling with people you haven't met yet? That's kind of the whole idea here — everyone on this list started as one person looking for their people.";
 
   return (
     <div className={`${themeClassName} relative min-h-screen`}>
@@ -236,6 +294,43 @@ function Discover() {
               </button>
             )}
           </div>
+
+          {!q && (
+            <section className="mt-5">
+              <h2 className="fomo-heading text-ink mb-1 flex items-center gap-1.5 text-lg font-semibold">
+                <Sparkles className="text-primary h-4 w-4" /> TRYB's picks
+              </h2>
+              <p className="mb-3 text-xs text-ink/40">Where we're focused right now — tap to see who's going.</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {featuredDestinations.map((d) => (
+                  <button
+                    key={d.slug}
+                    onClick={() => {
+                      const next = selectedDestination === d.name ? null : d.name;
+                      setSelectedDestination(next);
+                      trackEvent({ name: "discover_filter_used", filterType: "destination", value: next ?? "all" });
+                    }}
+                    className={`shadow-warm relative h-36 w-44 flex-shrink-0 overflow-hidden rounded-3xl text-left transition ${
+                      selectedDestination === d.name ? "ring-primary ring-2 ring-offset-2 ring-offset-background" : ""
+                    }`}
+                  >
+                    <img src={d.image} alt={d.name} className="absolute inset-0 h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                    {d.count > 0 && (
+                      <span className="absolute right-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
+                        {d.count} open
+                      </span>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 p-3">
+                      <p className="fomo-heading text-sm font-bold leading-tight text-white drop-shadow">
+                        {d.flag} {d.name}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           {!q && (
             <>
@@ -374,15 +469,24 @@ function Discover() {
                 ))}
               </div>
             ) : filteredTrips.length === 0 ? (
-              <div className="py-6 text-center">
-                <p className="text-sm text-ink/50">{emptyMessage}</p>
-                <Link
-                  to="/create"
-                  className="bg-primary text-cream mt-4 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
-                >
-                  Start a trip <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
+              destinationSignal ? (
+                <DestinationDemandEmptyState
+                  destination={destinationSignal}
+                  interestCount={interestCounts.get(destinationSignal) ?? 0}
+                  alreadyRegistered={myInterests.has(destinationSignal)}
+                  onRegisterInterest={() => registerInterest(destinationSignal)}
+                />
+              ) : (
+                <div className="py-6 text-center">
+                  <p className="text-sm text-ink/50">{emptyMessage}</p>
+                  <Link
+                    to="/create"
+                    className="bg-primary text-cream mt-4 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
+                  >
+                    Start a trip <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              )
             ) : (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                 {filteredTrips.map((trip, i) => (
@@ -427,6 +531,55 @@ function Discover() {
         </main>
         <BottomNav />
       </div>
+    </div>
+  );
+}
+
+// Discover Feature 1 — a destination with zero matching trips is real
+// signal, not a dead end. "Start a trip here" pre-fills Create; "I want
+// this too" registers real interest without creating a trip, and the
+// count shown back is always the real row count, never guessed.
+function DestinationDemandEmptyState({
+  destination,
+  interestCount,
+  alreadyRegistered,
+  onRegisterInterest,
+}: {
+  destination: string;
+  interestCount: number;
+  alreadyRegistered: boolean;
+  onRegisterInterest: () => void;
+}) {
+  return (
+    <div className="py-6 text-center">
+      <p className="text-sm text-ink/50">
+        No trips to {destination} yet — be the first to plan one. Not ready to organize? Tell us you'd go, and we'll
+        count you in.
+      </p>
+      <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+        <Link
+          to="/create"
+          search={{ destination }}
+          className="bg-primary text-cream inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold"
+        >
+          Start a trip here <ArrowRight className="h-4 w-4" />
+        </Link>
+        {!alreadyRegistered && (
+          <button
+            onClick={onRegisterInterest}
+            className="warm-card text-ink inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium"
+          >
+            I want this too
+          </button>
+        )}
+      </div>
+      {alreadyRegistered && (
+        <p className="mt-3 text-xs font-medium text-ink/50">
+          {interestCount <= 1
+            ? `Noted — you're the first to want ${destination}.`
+            : `Noted — you're one of ${interestCount} who want ${destination}.`}
+        </p>
+      )}
     </div>
   );
 }

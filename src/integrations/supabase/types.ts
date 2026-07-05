@@ -63,6 +63,27 @@ export type Database = {
         }
         Relationships: []
       }
+      destination_interest: {
+        Row: {
+          created_at: string
+          destination: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number

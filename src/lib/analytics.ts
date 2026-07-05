@@ -32,7 +32,10 @@ export type AnalyticsEvent =
   | { name: "report_submitted"; targetType: "trip" | "user" }
   // Group F, item 14 — a new flow step (organizer picks a template reason
   // when declining), tracked the same way as everything else.
-  | { name: "join_request_declined"; reasonTemplate: string };
+  | { name: "join_request_declined"; reasonTemplate: string }
+  // Discover Feature 1 — a real demand signal (destination with zero real
+  // trips that someone wants), queryable later to prioritize seeding.
+  | { name: "destination_interest_registered"; destination: string };
 
 export function trackEvent(event: AnalyticsEvent) {
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {

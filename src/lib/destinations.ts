@@ -47,6 +47,30 @@ export const DESTINATIONS: Destination[] = [
     image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200&q=80" },
   { slug: "havana", name: "Havana", country: "Cuba", flag: "🇨🇺", vibe: "city",
     image: "https://images.unsplash.com/photo-1500759285222-a95626b934cb?w=1200&q=80" },
+  // TRYB's featured picks (Discover Feature 2) — real destinations we're
+  // pointing at deliberately, whether or not a real trip exists yet.
+  { slug: "rishikesh", name: "Rishikesh", country: "India", flag: "🇮🇳", vibe: "mountain",
+    image: "https://images.unsplash.com/photo-1780997428032-ec11d8ab7210?w=1200&q=80" },
+  { slug: "goa", name: "Goa", country: "India", flag: "🇮🇳", vibe: "beach",
+    image: "https://images.unsplash.com/photo-1656155318073-5bdd6098e321?w=1200&q=80" },
+  { slug: "manali-kasol", name: "Manali & Kasol", country: "India", flag: "🇮🇳", vibe: "mountain",
+    image: "https://images.unsplash.com/photo-1675515640267-bae2ae9cc9d2?w=1200&q=80" },
+  { slug: "rajasthan-circuit", name: "Rajasthan Circuit", country: "India", flag: "🇮🇳", vibe: "desert",
+    image: "https://images.unsplash.com/photo-1578155173088-710a9aef3849?w=1200&q=80" },
+  { slug: "hampi-varanasi", name: "Hampi & Varanasi", country: "India", flag: "🇮🇳", vibe: "city",
+    image: "https://images.unsplash.com/photo-1561359313-0639aad49ca6?w=1200&q=80" },
+];
+
+// Discover Feature 2 — "where TRYB has a point of view," a fixed editorial
+// list (not derived from real trips like destinationOptions elsewhere).
+// Real trip/going counts are still looked up per-destination at render
+// time — never fabricated, just not the basis for which 5 appear here.
+export const FEATURED_DESTINATION_SLUGS = [
+  "rishikesh",
+  "goa",
+  "manali-kasol",
+  "rajasthan-circuit",
+  "hampi-varanasi",
 ];
 
 export function findDestination(query: string): Destination | undefined {

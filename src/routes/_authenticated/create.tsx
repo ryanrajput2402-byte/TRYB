@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
@@ -10,18 +11,26 @@ import { Link } from "@tanstack/react-router";
 import { useAppTheme } from "@/lib/theme-context";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
+// Discover Feature 1/2 — "Start a trip here" pre-fills this from an
+// optional query param, still fully editable once here.
+const searchSchema = z.object({
+  destination: z.string().optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/create")({
   head: () => ({ meta: [{ title: "Create a trip — TRYB" }] }),
+  validateSearch: searchSchema,
   component: CreateTrip,
 });
 
 function CreateTrip() {
   const navigate = useNavigate();
+  const { destination: prefilledDestination } = Route.useSearch();
   const { preference: themePreference } = useAppTheme();
   const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
   const [form, setForm] = useState({
     title: "",
-    destination: "",
+    destination: prefilledDestination ?? "",
     start_date: "",
     end_date: "",
     max_members: 6,
