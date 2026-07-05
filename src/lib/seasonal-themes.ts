@@ -28,8 +28,3 @@ export const DEFAULT_SEASON_THEME: SeasonThemeId = "autumn";
 export function seasonThemeClassName(id: SeasonThemeId): string {
   return SEASON_THEMES.find((t) => t.id === id)?.className ?? SEASON_THEMES[0].className;
 }
-
-// Session-only "don't nag me again" flag for the first-login picker (Home).
-// Deliberately sessionStorage, not localStorage/DB: dismissing just defers
-// the choice, it isn't a real preference — a fresh session should ask again.
-export const THEME_PICKER_DISMISSED_KEY = "tryb-theme-picker-dismissed";

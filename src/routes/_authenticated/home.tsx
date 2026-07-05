@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
@@ -13,9 +13,7 @@ import { DESTINATIONS } from "@/lib/destinations";
 import { pluralize, formatCompactRange } from "@/lib/format-date";
 import { trackEvent } from "@/lib/analytics";
 import { useAppTheme } from "@/lib/theme-context";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName, THEME_PICKER_DISMISSED_KEY } from "@/lib/seasonal-themes";
-import { ThemePickerModal } from "@/components/theme-picker-modal";
-import { OnboardingIntroCarousel } from "@/components/onboarding-intro-carousel";
+import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { TripCardData as Trip, urgencyRatio, sizeTier, deriveDestinationOptions } from "@/lib/trip-urgency";
 import { Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -25,7 +23,6 @@ type Profile = {
   id: string;
   full_name: string;
   avatar_url: string | null;
-  onboarding_intro_seen?: boolean;
 };
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -34,16 +31,8 @@ export const Route = createFileRoute("/_authenticated/home")({
 });
 
 function HomeFeed() {
-  const navigate = useNavigate();
-  const { preference: themePreference, loading: themeLoading, choose: chooseTheme } = useAppTheme();
+  const { preference: themePreference } = useAppTheme();
   const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
-  const [pickerDismissed, setPickerDismissed] = useState(
-    () => typeof window !== "undefined" && window.sessionStorage.getItem(THEME_PICKER_DISMISSED_KEY) === "1",
-  );
-  function dismissThemePicker() {
-    setPickerDismissed(true);
-    window.sessionStorage.setItem(THEME_PICKER_DISMISSED_KEY, "1");
-  }
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -57,25 +46,6 @@ function HomeFeed() {
   const [hasOwnEngagement, setHasOwnEngagement] = useState(false);
   const tripIndexRef = useRef<Map<string, Trip>>(new Map());
   const reducedMotion = usePrefersReducedMotion();
-
-  // Intro carousel gates on a persistent DB flag (real "shown once ever",
-  // not session-based like the theme picker below) — see
-  // onboarding_intro_seen migration. introSeenOverride lets closing it
-  // hide it instantly without waiting on a refetch.
-  const [introSeenOverride, setIntroSeenOverride] = useState(false);
-  const showIntroCarousel = !loading && !!profile && !profile.onboarding_intro_seen && !introSeenOverride;
-  async function closeIntroCarousel() {
-    setIntroSeenOverride(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (u.user) await supabase.from("profiles").update({ onboarding_intro_seen: true }).eq("id", u.user.id);
-  }
-
-  // First-login prompt lives here (the true landing screen after auth), not
-  // per-screen — it's gated purely on theme_preference being null, so it
-  // shows once regardless of which screen a given session starts asking on.
-  // Forced off while the intro carousel is still showing, so the two never
-  // overlap and always run in that order.
-  const showThemePicker = !showIntroCarousel && !themeLoading && themePreference === null && !pickerDismissed;
 
   // TopBar is a shared component (not modified here) and is itself `sticky
   // top-0` with a higher z-index — measuring its real rendered height (rather
@@ -98,7 +68,7 @@ function HomeFeed() {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
       const [{ data: p }, { data: t }, { data: sv }, { data: myMembership }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url, onboarding_intro_seen").eq("id", u.user.id).maybeSingle(),
+        supabase.from("profiles").select("id, full_name, avatar_url").eq("id", u.user.id).maybeSingle(),
         supabase.from("trips").select("*").order("created_at", { ascending: false }).limit(40),
         supabase.from("saved_trips").select("trip_id").eq("user_id", u.user.id),
         supabase.from("trip_members").select("id").eq("user_id", u.user.id).limit(1),
@@ -359,17 +329,6 @@ function HomeFeed() {
         </main>
         <BottomNav />
       </div>
-
-      {showIntroCarousel && (
-        <OnboardingIntroCarousel
-          onClose={closeIntroCarousel}
-          onCreateTrip={() => {
-            closeIntroCarousel();
-            navigate({ to: "/create" });
-          }}
-        />
-      )}
-      {showThemePicker && <ThemePickerModal onChoose={chooseTheme} onDismiss={dismissThemePicker} />}
     </div>
   );
 }

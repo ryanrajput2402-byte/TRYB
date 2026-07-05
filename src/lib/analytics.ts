@@ -36,9 +36,10 @@ export type AnalyticsEvent =
   // Discover Feature 1 — a real demand signal (destination with zero real
   // trips that someone wants), queryable later to prioritize seeding.
   | { name: "destination_interest_registered"; destination: string }
-  // First-login intro carousel — which slide someone was on when they left,
-  // real signal for whether the sequence is too long or landing fine.
-  | { name: "onboarding_intro_dismissed"; lastSlide: number; completed: boolean };
+  // New onboarding flow — which step someone reached, and whether a real
+  // trip match existed at the payoff step (real signal, never guessed).
+  | { name: "onboarding_step_reached"; step: string }
+  | { name: "onboarding_completed"; matched: boolean };
 
 export function trackEvent(event: AnalyticsEvent) {
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
