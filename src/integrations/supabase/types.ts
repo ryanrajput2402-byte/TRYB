@@ -66,6 +66,7 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          category: string | null
           created_at: string
           currency: string
           description: string
@@ -78,6 +79,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          category?: string | null
           created_at?: string
           currency?: string
           description: string
@@ -90,6 +92,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          category?: string | null
           created_at?: string
           currency?: string
           description?: string
@@ -190,6 +193,47 @@ export type Database = {
           {
             foreignKeyName: "messages_trip_id_fkey"
             columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reported_trip_id: string | null
+          reported_user_id: string | null
+          reporter_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reported_trip_id?: string | null
+          reported_user_id?: string | null
+          reporter_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reported_trip_id?: string | null
+          reported_user_id?: string | null
+          reporter_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_reports_reported_trip_id_fkey"
+            columns: ["reported_trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
             referencedColumns: ["id"]
@@ -303,12 +347,14 @@ export type Database = {
           budget_range: string | null
           countries_count: number
           created_at: string
+          email_verified: boolean
           full_name: string
           group_preference: string | null
           id: string
           interests: string[] | null
           location: string | null
           onboarding_completed: boolean
+          response_time_expectation: string | null
           travel_personality: string | null
           travel_style: string | null
           trips_count: number
@@ -322,12 +368,14 @@ export type Database = {
           budget_range?: string | null
           countries_count?: number
           created_at?: string
+          email_verified?: boolean
           full_name?: string
           group_preference?: string | null
           id: string
           interests?: string[] | null
           location?: string | null
           onboarding_completed?: boolean
+          response_time_expectation?: string | null
           travel_personality?: string | null
           travel_style?: string | null
           trips_count?: number
@@ -341,12 +389,14 @@ export type Database = {
           budget_range?: string | null
           countries_count?: number
           created_at?: string
+          email_verified?: boolean
           full_name?: string
           group_preference?: string | null
           id?: string
           interests?: string[] | null
           location?: string | null
           onboarding_completed?: boolean
+          response_time_expectation?: string | null
           travel_personality?: string | null
           travel_style?: string | null
           trips_count?: number
@@ -389,6 +439,7 @@ export type Database = {
         Row: {
           id: string
           joined_at: string
+          rejection_reason: string | null
           role: string
           status: string
           trip_id: string
@@ -397,6 +448,7 @@ export type Database = {
         Insert: {
           id?: string
           joined_at?: string
+          rejection_reason?: string | null
           role?: string
           status?: string
           trip_id: string
@@ -405,6 +457,7 @@ export type Database = {
         Update: {
           id?: string
           joined_at?: string
+          rejection_reason?: string | null
           role?: string
           status?: string
           trip_id?: string
@@ -420,8 +473,44 @@ export type Database = {
           },
         ]
       }
+      trip_spend_estimates: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          note: string | null
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_spend_estimates_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
+          budget_flexibility: string | null
           budget_max: number | null
           budget_min: number | null
           country: string | null
@@ -443,6 +532,7 @@ export type Database = {
           vibe_tags: string[] | null
         }
         Insert: {
+          budget_flexibility?: string | null
           budget_max?: number | null
           budget_min?: number | null
           country?: string | null
@@ -464,6 +554,7 @@ export type Database = {
           vibe_tags?: string[] | null
         }
         Update: {
+          budget_flexibility?: string | null
           budget_max?: number | null
           budget_min?: number | null
           country?: string | null

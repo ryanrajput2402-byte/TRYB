@@ -10,6 +10,7 @@ import { useAppTheme } from "@/lib/theme-context";
 import { SEASON_THEMES, DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { ThemePickerModal } from "@/components/theme-picker-modal";
 import { formatMemberSince } from "@/lib/format-date";
+import { RESPONSE_TIME_LABELS } from "@/lib/profile-badges";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
@@ -115,7 +116,10 @@ function ProfilePage() {
               <span className="fomo-heading text-primary text-3xl font-bold">{(profile.full_name ?? "?").slice(0, 1).toUpperCase()}</span>
             )}
           </div>
-          <h1 className="fomo-heading text-ink mt-4 text-2xl font-bold">{profile.full_name}</h1>
+          <h1 className="fomo-heading text-ink mt-4 text-2xl font-bold">
+            {profile.full_name}
+            {profile.email_verified && <span className="text-pine ml-1.5 text-base font-semibold">✓</span>}
+          </h1>
           {profile.travel_personality && (
             <span className="bg-primary/15 text-primary mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold">
               {profile.travel_personality}
@@ -129,6 +133,9 @@ function ProfilePage() {
             </p>
           )}
           {profile.created_at && <p className="mt-1 text-xs text-ink/40">{formatMemberSince(profile.created_at)}</p>}
+          {profile.response_time_expectation && (
+            <p className="mt-1 text-xs text-ink/50">{RESPONSE_TIME_LABELS[profile.response_time_expectation]}</p>
+          )}
 
           <div className="mt-5 grid grid-cols-3 gap-3">
             <Stat n={organizedTrips.length} label="Organized" />
@@ -331,6 +338,7 @@ function EditProfileModal({ profile, onClose, onSave }: {
   const [bio, setBio] = useState(profile.bio ?? "");
   const [location, setLocation] = useState(profile.location ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
+  const [responseTime, setResponseTime] = useState<string | null>(profile.response_time_expectation ?? null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -354,7 +362,13 @@ function EditProfileModal({ profile, onClose, onSave }: {
     setSaving(true);
     const { data, error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName.trim(), bio: bio.trim() || null, location: location.trim() || null, avatar_url: avatarUrl.trim() || null })
+      .update({
+        full_name: fullName.trim(),
+        bio: bio.trim() || null,
+        location: location.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+        response_time_expectation: responseTime,
+      })
       .eq("id", profile.id)
       .select()
       .maybeSingle();
@@ -403,6 +417,25 @@ function EditProfileModal({ profile, onClose, onSave }: {
               placeholder="City, Country"
               className="w-full rounded-xl border border-ink/10 bg-ink/5 px-4 py-3 text-sm text-ink outline-none transition focus:border-primary"
             />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50">
+              As an organizer, how fast do you usually respond?
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {(["fast", "daily", "flexible"] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setResponseTime(responseTime === id ? null : id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    responseTime === id ? "bg-primary text-primary-foreground" : "bg-ink/5 text-ink/60"
+                  }`}
+                >
+                  {RESPONSE_TIME_LABELS[id]}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink/50">Photo</label>

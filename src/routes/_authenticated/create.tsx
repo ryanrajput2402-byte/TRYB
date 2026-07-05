@@ -28,6 +28,7 @@ function CreateTrip() {
     description: "",
     budget_min: 500,
     budget_max: 2000,
+    budget_flexibility: "flexible" as "flexible" | "strict",
     privacy: "public" as "public" | "private",
     solo_friendly: false,
     vibe_summary: "",
@@ -64,6 +65,7 @@ function CreateTrip() {
         vibe_tags: vibes,
         budget_min: form.budget_min,
         budget_max: form.budget_max,
+        budget_flexibility: form.budget_flexibility,
         privacy: form.privacy,
         solo_friendly: form.solo_friendly,
         vibe_summary: form.vibe_summary.trim() || null,
@@ -142,6 +144,20 @@ function CreateTrip() {
               <F label="Budget min ($)"><input type="number" className="ipt" value={form.budget_min} onChange={(e) => setForm({ ...form, budget_min: Number(e.target.value) })} /></F>
               <F label="Budget max ($)"><input type="number" className="ipt" value={form.budget_max} onChange={(e) => setForm({ ...form, budget_max: Number(e.target.value) })} /></F>
             </div>
+            <F label="Budget flexibility">
+              <div className="flex gap-2">
+                {(["flexible", "strict"] as const).map((f) => (
+                  <button key={f} type="button" onClick={() => setForm({ ...form, budget_flexibility: f })}
+                    className={`flex-1 rounded-2xl px-4 py-3 text-sm font-medium capitalize transition ${
+                      form.budget_flexibility === f ? "bg-primary/10 text-primary" : "warm-card text-ink/60"
+                    }`}>{f === "flexible" ? "🌊 Flexible" : "🎯 Strict"}</button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[11px] text-ink/40">
+                Strict means the budget range is close to final; flexible means there's room to adjust once the
+                group's set.
+              </p>
+            </F>
             <F label="Description">
               <textarea className="ipt min-h-24" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What's the plan? Who's it for?" />
             </F>

@@ -21,6 +21,7 @@ import { Route as AuthenticatedGroupsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedDiscoverRouteImport } from './routes/_authenticated/discover'
 import { Route as AuthenticatedCreateRouteImport } from './routes/_authenticated/create'
 import { Route as AuthenticatedTripTripIdRouteImport } from './routes/_authenticated/trip.$tripId'
+import { Route as AuthenticatedProfileUserIdRouteImport } from './routes/_authenticated/profile_.$userId'
 import { Route as AuthenticatedTripTripIdChatRouteImport } from './routes/_authenticated/trip.$tripId_.chat'
 
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -82,6 +83,12 @@ const AuthenticatedTripTripIdRoute = AuthenticatedTripTripIdRouteImport.update({
   path: '/trip/$tripId',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProfileUserIdRoute =
+  AuthenticatedProfileUserIdRouteImport.update({
+    id: '/profile_/$userId',
+    path: '/profile/$userId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTripTripIdChatRoute =
   AuthenticatedTripTripIdChatRouteImport.update({
     id: '/trip/$tripId_/chat',
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/post': typeof AuthenticatedPostRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/profile/$userId': typeof AuthenticatedProfileUserIdRoute
   '/trip/$tripId': typeof AuthenticatedTripTripIdRoute
   '/trip/$tripId/chat': typeof AuthenticatedTripTripIdChatRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesByTo {
   '/post': typeof AuthenticatedPostRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/profile/$userId': typeof AuthenticatedProfileUserIdRoute
   '/trip/$tripId': typeof AuthenticatedTripTripIdRoute
   '/trip/$tripId/chat': typeof AuthenticatedTripTripIdChatRoute
 }
@@ -130,6 +139,7 @@ export interface FileRoutesById {
   '/_authenticated/post': typeof AuthenticatedPostRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth_/callback': typeof AuthCallbackRoute
+  '/_authenticated/profile_/$userId': typeof AuthenticatedProfileUserIdRoute
   '/_authenticated/trip/$tripId': typeof AuthenticatedTripTripIdRoute
   '/_authenticated/trip/$tripId_/chat': typeof AuthenticatedTripTripIdChatRoute
 }
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/profile'
     | '/auth/callback'
+    | '/profile/$userId'
     | '/trip/$tripId'
     | '/trip/$tripId/chat'
   fileRoutesByTo: FileRoutesByTo
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/profile'
     | '/auth/callback'
+    | '/profile/$userId'
     | '/trip/$tripId'
     | '/trip/$tripId/chat'
   id:
@@ -175,6 +187,7 @@ export interface FileRouteTypes {
     | '/_authenticated/post'
     | '/_authenticated/profile'
     | '/auth_/callback'
+    | '/_authenticated/profile_/$userId'
     | '/_authenticated/trip/$tripId'
     | '/_authenticated/trip/$tripId_/chat'
   fileRoutesById: FileRoutesById
@@ -273,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripTripIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/profile_/$userId': {
+      id: '/_authenticated/profile_/$userId'
+      path: '/profile/$userId'
+      fullPath: '/profile/$userId'
+      preLoaderRoute: typeof AuthenticatedProfileUserIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/trip/$tripId_/chat': {
       id: '/_authenticated/trip/$tripId_/chat'
       path: '/trip/$tripId/chat'
@@ -290,6 +310,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedPostRoute: typeof AuthenticatedPostRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedProfileUserIdRoute: typeof AuthenticatedProfileUserIdRoute
   AuthenticatedTripTripIdRoute: typeof AuthenticatedTripTripIdRoute
   AuthenticatedTripTripIdChatRoute: typeof AuthenticatedTripTripIdChatRoute
 }
@@ -301,6 +322,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedPostRoute: AuthenticatedPostRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedProfileUserIdRoute: AuthenticatedProfileUserIdRoute,
   AuthenticatedTripTripIdRoute: AuthenticatedTripTripIdRoute,
   AuthenticatedTripTripIdChatRoute: AuthenticatedTripTripIdChatRoute,
 }

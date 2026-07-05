@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { formatCompactRange } from "@/lib/format-date";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { useAppTheme } from "@/lib/theme-context";
+import { trackEvent } from "@/lib/analytics";
 
 type Profile = {
   id: string;
@@ -73,9 +74,28 @@ type ExpenseRow = {
   currency: string;
   split_user_ids: string[];
   settled_by: string[];
+  category: string | null;
+};
+
+// Group E, item 1 — a real, informal running-spend line a member added,
+// deliberately separate from the settled `expenses` above.
+type SpendEstimateRow = {
+  id: string;
+  user_id: string;
+  amount: number;
+  note: string | null;
 };
 
 const REACTION_EMOJI = ["❤️", "😂", "👍", "😮", "🙌"];
+
+// Group E, item 2 — optional expense category, matches the DB check
+// constraint (stay/travel/food/other).
+const EXPENSE_CATEGORIES: { id: string; label: string; emoji: string }[] = [
+  { id: "stay", label: "Stay", emoji: "🏠" },
+  { id: "travel", label: "Travel", emoji: "✈️" },
+  { id: "food", label: "Food", emoji: "🍜" },
+  { id: "other", label: "Other", emoji: "📦" },
+];
 
 // Keyo is the only element in this screen allowed a gradient/glow treatment —
 // deliberately soft (low alpha, tight blur) so it reads as a quiet accent
@@ -166,13 +186,17 @@ export function GroupChat({ tripId }: { tripId: string }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [spendEstimates, setSpendEstimates] = useState<SpendEstimateRow[]>([]);
   const [composerText, setComposerText] = useState("");
   const [sending, setSending] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [estimateOpen, setEstimateOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const [creatingExpense, setCreatingExpense] = useState(false);
+  const [addingEstimate, setAddingEstimate] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
   const [tripCurrency, setTripCurrency] = useState("USD");
+  const [tripBudgetMax, setTripBudgetMax] = useState<number | null>(null);
   const [tripName, setTripName] = useState("");
   const [tripPhoto, setTripPhoto] = useState<string | null>(null);
   const [tripStart, setTripStart] = useState<string | null>(null);
@@ -201,7 +225,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
 
       const { data: trip } = await supabase
         .from("trips")
-        .select("currency, destination, cover_image, start_date, end_date")
+        .select("currency, destination, cover_image, start_date, end_date, budget_max")
         .eq("id", tripId)
         .maybeSingle();
       if (!cancelled && trip?.currency) setTripCurrency(trip.currency);
@@ -210,6 +234,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
         setTripPhoto(trip.cover_image ?? null);
         setTripStart(trip.start_date ?? null);
         setTripEnd(trip.end_date ?? null);
+        setTripBudgetMax(trip.budget_max ?? null);
       }
 
       const { data: memberRows } = await supabase
@@ -230,9 +255,15 @@ export function GroupChat({ tripId }: { tripId: string }) {
 
       const { data: expenseRows } = await supabase
         .from("expenses")
-        .select("id, payer_id, amount, currency, split_user_ids, settled_by")
+        .select("id, payer_id, amount, currency, split_user_ids, settled_by, category")
         .eq("trip_id", tripId);
       if (!cancelled) setExpenses((expenseRows ?? []) as ExpenseRow[]);
+
+      const { data: estimateRows } = await supabase
+        .from("trip_spend_estimates")
+        .select("id, user_id, amount, note")
+        .eq("trip_id", tripId);
+      if (!cancelled) setSpendEstimates((estimateRows ?? []) as SpendEstimateRow[]);
 
       const { data: messageRows } = await supabase
         .from("messages")
@@ -441,6 +472,14 @@ export function GroupChat({ tripId }: { tripId: string }) {
           });
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "trip_spend_estimates", filter: `trip_id=eq.${tripId}` },
+        (payload) => {
+          const row = payload.new as SpendEstimateRow;
+          setSpendEstimates((prev) => (prev.some((e) => e.id === row.id) ? prev : [...prev, row]));
+        },
+      )
       .subscribe();
 
     return () => {
@@ -473,6 +512,32 @@ export function GroupChat({ tripId }: { tripId: string }) {
     });
     return { owe, owed };
   }, [expenses, currentUserId]);
+
+  // Group E, item 1 — sum of real, informal estimate entries (never the
+  // settled `expenses` above). Item 4 — real logged expenses total, for the
+  // budget bar. Item 2 — per-category-per-person breakdown, only computed
+  // once real expenses exist to categorize.
+  const estimateSum = useMemo(
+    () => spendEstimates.reduce((sum, e) => sum + Number(e.amount), 0),
+    [spendEstimates],
+  );
+  const expensesTotal = useMemo(
+    () => expenses.reduce((sum, e) => sum + Number(e.amount), 0),
+    [expenses],
+  );
+  const categoryBreakdown = useMemo(() => {
+    if (expenses.length === 0) return null;
+    const sums = new Map<string, number>();
+    expenses.forEach((e) => {
+      const cat = e.category ?? "other";
+      sums.set(cat, (sums.get(cat) ?? 0) + Number(e.amount));
+    });
+    const headcount = members.length || 1;
+    return Array.from(sums.entries()).map(([category, total]) => ({
+      category,
+      perPerson: total / headcount,
+    }));
+  }, [expenses, members]);
 
   const activePollMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -564,6 +629,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
     description: string;
     amount: number;
     splitAmong: string[];
+    category: string;
   }) {
     if (!currentUserId || creatingExpense) return;
     setCreatingExpense(true);
@@ -577,6 +643,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
           amount: input.amount,
           currency: tripCurrency,
           split_user_ids: input.splitAmong,
+          category: input.category,
         })
         .select()
         .single();
@@ -594,6 +661,7 @@ export function GroupChat({ tripId }: { tripId: string }) {
           currency: tripCurrency,
           paid_by: currentUserId,
           split_among: input.splitAmong,
+          category: input.category,
         },
       });
       if (msgError) throw msgError;
@@ -602,6 +670,28 @@ export function GroupChat({ tripId }: { tripId: string }) {
       toast.error(err instanceof Error ? err.message : "Couldn't add expense");
     } finally {
       setCreatingExpense(false);
+    }
+  }
+
+  // Group E, item 1 — adds one real, informal estimate line. Never touches
+  // the settled `expenses` table.
+  async function addSpendEstimate(input: { amount: number; note: string }) {
+    if (!currentUserId || addingEstimate) return;
+    setAddingEstimate(true);
+    try {
+      const { error } = await supabase.from("trip_spend_estimates").insert({
+        trip_id: tripId,
+        user_id: currentUserId,
+        amount: input.amount,
+        note: input.note.trim() || null,
+      });
+      if (error) throw error;
+      trackEvent({ name: "spend_estimate_added", tripId, amount: input.amount });
+      setEstimateOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't add estimate");
+    } finally {
+      setAddingEstimate(false);
     }
   }
 
@@ -752,6 +842,12 @@ export function GroupChat({ tripId }: { tripId: string }) {
           balance={balance}
           currency={tripCurrency}
           onScrollToPoll={() => activePollMessage && scrollToMessage(activePollMessage.id)}
+          estimateSum={estimateSum}
+          expensesTotal={expensesTotal}
+          budgetMax={tripBudgetMax}
+          categoryBreakdown={categoryBreakdown}
+          onAddEstimate={() => setEstimateOpen(true)}
+          onAddExpense={() => setExpenseOpen(true)}
         />
       </div>
 
@@ -890,6 +986,14 @@ export function GroupChat({ tripId }: { tripId: string }) {
         submitting={creatingPoll}
         themeClassName={themeClassName}
       />
+      <SpendEstimateDialog
+        open={estimateOpen}
+        onOpenChange={setEstimateOpen}
+        currency={tripCurrency}
+        onSubmit={addSpendEstimate}
+        submitting={addingEstimate}
+        themeClassName={themeClassName}
+      />
     </div>
   );
 }
@@ -962,17 +1066,30 @@ function PinnedStrip({
   balance,
   currency,
   onScrollToPoll,
+  estimateSum,
+  expensesTotal,
+  budgetMax,
+  categoryBreakdown,
+  onAddEstimate,
+  onAddExpense,
 }: {
   activePollMessage: ChatMessage | null;
   balance: { owe: number; owed: number };
   currency: string;
   onScrollToPoll: () => void;
+  estimateSum: number;
+  expensesTotal: number;
+  budgetMax: number | null;
+  categoryBreakdown: { category: string; perPerson: number }[] | null;
+  onAddEstimate: () => void;
+  onAddExpense: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const hasBalance = balance.owe > 0 || balance.owed > 0;
   const hasPoll = !!activePollMessage?.poll;
-
-  if (!hasPoll && !hasBalance) return null;
+  // Group E's Budget row is always offered (even with nothing logged yet)
+  // so the running-estimate tracker and "add first expense" nudge stay
+  // discoverable — never hidden behind an empty strip.
 
   const totalVotes = activePollMessage?.poll
     ? activePollMessage.poll.options.reduce((s, o) => s + o.voterIds.length, 0)
@@ -1031,6 +1148,68 @@ function PinnedStrip({
               </span>
             </div>
           )}
+          {/* Group E — items 1, 2, 4, 7: informal running estimate, real
+              per-category breakdown (once expenses exist), and a real
+              logged-vs-budget bar, all from real data, never fabricated. */}
+          <div className={`space-y-1.5 ${hasPoll || hasBalance ? "border-t border-ink/8 pt-1.5" : ""}`}>
+            <div className="flex w-full items-center gap-2">
+              <Wallet className="text-clay h-3.5 w-3.5 flex-shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-xs text-ink/75">
+                {estimateSum > 0 ? (
+                  <>
+                    ~
+                    <span className="font-semibold text-ink">
+                      {currency} {estimateSum.toFixed(0)}
+                    </span>{" "}
+                    estimated so far
+                  </>
+                ) : (
+                  "No spend estimate yet"
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={onAddEstimate}
+                className="text-pine flex-shrink-0 text-[11px] font-semibold"
+              >
+                + Add
+              </button>
+            </div>
+
+            {categoryBreakdown ? (
+              <p className="pl-5 text-[11px] text-ink/55">
+                {categoryBreakdown.map((c, i) => (
+                  <span key={c.category}>
+                    {i > 0 && " · "}
+                    {EXPENSE_CATEGORIES.find((e) => e.id === c.category)?.label ?? "Other"}{" "}
+                    {currency} {c.perPerson.toFixed(0)}/person
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={onAddExpense}
+                className="pl-5 text-left text-[11px] text-ink/45 underline decoration-dotted"
+              >
+                No expenses logged yet — add the first one
+              </button>
+            )}
+
+            {budgetMax != null && (
+              <div className="pl-5">
+                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
+                  <div
+                    className="bg-pine absolute inset-y-0 left-0 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (expensesTotal / budgetMax) * 100)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-ink/45">
+                  {currency} {expensesTotal.toFixed(0)} logged of {currency} {budgetMax} budget
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1253,6 +1432,12 @@ function ExpenseCard({
       <div className="text-clay flex items-center gap-1.5">
         <Wallet className="h-3.5 w-3.5" />
         <p className="text-[10px] font-bold uppercase tracking-[0.15em]">Expense</p>
+        {meta.category && (
+          <span className="ml-auto rounded-full bg-ink/5 px-2 py-0.5 text-[9px] font-semibold text-ink/60">
+            {EXPENSE_CATEGORIES.find((c) => c.id === meta.category)?.emoji ?? "📦"}{" "}
+            {EXPENSE_CATEGORIES.find((c) => c.id === meta.category)?.label ?? "Other"}
+          </span>
+        )}
       </div>
       <p className="fomo-heading mt-2 text-lg font-bold text-ink">
         {meta.currency} {meta.amount}
@@ -1343,12 +1528,13 @@ function ExpenseDialog({
   onOpenChange: (open: boolean) => void;
   members: Member[];
   currency: string;
-  onSubmit: (input: { description: string; amount: number; splitAmong: string[] }) => void;
+  onSubmit: (input: { description: string; amount: number; splitAmong: string[]; category: string }) => void;
   submitting: boolean;
   themeClassName: string;
 }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("other");
   const [splitAmong, setSplitAmong] = useState<string[]>(members.map((m) => m.user_id));
 
   useEffect(() => {
@@ -1368,9 +1554,10 @@ function ExpenseDialog({
       toast.error("Add a description, amount, and at least one person to split with");
       return;
     }
-    onSubmit({ description: description.trim(), amount: value, splitAmong });
+    onSubmit({ description: description.trim(), amount: value, splitAmong, category });
     setDescription("");
     setAmount("");
+    setCategory("other");
   }
 
   return (
@@ -1393,6 +1580,23 @@ function ExpenseDialog({
             onChange={(e) => setAmount(e.target.value)}
             className="border-ink/15 bg-white/50 text-ink placeholder:text-ink/35"
           />
+          <div>
+            <p className="mb-2 text-xs font-medium text-ink/55">Category</p>
+            <div className="flex flex-wrap gap-2">
+              {EXPENSE_CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCategory(c.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                    category === c.id ? "bg-pine text-cream" : "bg-ink/5 text-ink/60"
+                  }`}
+                >
+                  {c.emoji} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <p className="mb-2 text-xs font-medium text-ink/55">Split among</p>
             <div className="flex flex-wrap gap-2">
@@ -1421,6 +1625,77 @@ function ExpenseDialog({
             disabled={submitting}
           >
             {submitting ? "Adding…" : "Add expense"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Group E, item 1 — a quick, informal line ("flights ~$200"), never a
+// settled/split expense. Any approved member can add one.
+function SpendEstimateDialog({
+  open,
+  onOpenChange,
+  currency,
+  onSubmit,
+  submitting,
+  themeClassName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currency: string;
+  onSubmit: (input: { amount: number; note: string }) => void;
+  submitting: boolean;
+  themeClassName: string;
+}) {
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+
+  function submit() {
+    if (submitting) return;
+    const value = parseFloat(amount);
+    if (!value || value <= 0) {
+      toast.error("Add a rough amount first");
+      return;
+    }
+    onSubmit({ amount: value, note });
+    setAmount("");
+    setNote("");
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={`${themeClassName} border-ink/10 bg-sand sm:rounded-3xl`}>
+        <DialogHeader>
+          <DialogTitle className="fomo-heading text-ink">Add a rough estimate</DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-ink/50">
+          Informal only — this isn't a settled expense, just a running number the group can track together.
+        </p>
+        <div className="space-y-3">
+          <Input
+            type="number"
+            placeholder={`Amount (${currency})`}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="border-ink/15 bg-white/50 text-ink placeholder:text-ink/35"
+          />
+          <Input
+            placeholder="What's it for? (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="border-ink/15 bg-white/50 text-ink placeholder:text-ink/35"
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            className="bg-pine text-cream hover:opacity-90"
+            onClick={submit}
+            disabled={submitting}
+          >
+            {submitting ? "Adding…" : "Add estimate"}
           </Button>
         </DialogFooter>
       </DialogContent>

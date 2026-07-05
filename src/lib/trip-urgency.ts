@@ -160,6 +160,20 @@ export function costPerPerson(trip: { budget_min?: number | null; budget_max?: n
   };
 }
 
+// Group E, item 3 — prominent Discover budget filter. Bucketed off the same
+// costPerPerson upper bound already used everywhere else (never a separate
+// computation), so "budget-friendly" always means the same thing across the
+// app. Trips with no budget set (costPerPerson returns null) simply don't
+// match any specific bucket — they're excluded when a bucket other than
+// "any" is selected, never guessed into one.
+export type BudgetBucket = "any" | "budget" | "mid" | "premium";
+export function tripBudgetBucket(pp: { max: number } | null): Exclude<BudgetBucket, "any"> | null {
+  if (!pp) return null;
+  if (pp.max <= 100) return "budget";
+  if (pp.max <= 300) return "mid";
+  return "premium";
+}
+
 // Days until the trip starts — reuses the same real start_date already
 // driving momentumLabel, just exposed as a raw number so callers can build
 // their own "days until dates lock in" framing without re-deriving it.

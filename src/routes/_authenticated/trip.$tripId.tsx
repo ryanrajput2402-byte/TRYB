@@ -10,7 +10,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, Users, Wallet, Loader as Loader2, Check } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Wallet, Loader as Loader2, Check, Flag } from "lucide-react";
+import { ReportModal } from "@/components/report-modal";
+import { DeclineReasonModal } from "@/components/decline-reason-modal";
 import { format } from "date-fns";
 import { INTEREST_TAGS } from "@/lib/destinations";
 import { useAppTheme } from "@/lib/theme-context";
@@ -18,6 +20,7 @@ import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-theme
 import { costPerPerson, daysUntilStart, groupSizeProgression } from "@/lib/trip-urgency";
 import { formatMemberSince } from "@/lib/format-date";
 import { trackEvent } from "@/lib/analytics";
+import { RESPONSE_TIME_LABELS } from "@/lib/profile-badges";
 
 export const Route = createFileRoute("/_authenticated/trip/$tripId")({
   head: () => ({ meta: [{ title: "Trip — TRYB" }] }),
@@ -42,6 +45,12 @@ function TripDetail() {
   // which is tied to the one-time signup flow instead.
   const [isFirstEverRequest, setIsFirstEverRequest] = useState(false);
   const [showFirstRequestIntro, setShowFirstRequestIntro] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  // Item 13 — first-names-only, only ever fetched for approved non-organizer
+  // members. RLS already allows this (approved members can read every
+  // trip_members row for their trip), but a random visitor who hasn't been
+  // approved never triggers this fetch, so they never see who else applied.
+  const [pendingProfiles, setPendingProfiles] = useState<{ id: string; full_name: string }[]>([]);
 
   async function refresh() {
     const { data: u } = await supabase.auth.getUser();
@@ -77,6 +86,22 @@ function TripDetail() {
 
   useEffect(() => { refresh(); }, [tripId]);
 
+  // Item 13 — see the state comment above; only ever runs for approved
+  // non-organizer members, and only when there's real pending data to show.
+  useEffect(() => {
+    const isOrg = !!(me && trip && me.id === trip.organizer_id);
+    const pendingIds = members.filter((m) => m.status === "pending").map((m) => m.user_id);
+    if (isOrg || myMembership?.status !== "approved" || pendingIds.length === 0) {
+      setPendingProfiles([]);
+      return;
+    }
+    supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", pendingIds)
+      .then(({ data }) => setPendingProfiles(data ?? []));
+  }, [members, me, trip, myMembership?.status]);
+
   // So a pending requester sees their approval instantly instead of needing to refresh.
   useEffect(() => {
     if (!me?.id) return;
@@ -91,7 +116,13 @@ function TripDetail() {
           setMyMembership(row);
           setMembers((prev) => prev.map((m) => (m.id === row.id ? row : m)));
           if (row.status === "approved") toast.success("You're in — the group chat's open and waiting for you.");
-          else if (row.status === "rejected") toast.error("Your request to join wasn't approved");
+          else if (row.status === "rejected") {
+            toast.error(
+              row.rejection_reason
+                ? `Your request to join wasn't approved: ${row.rejection_reason}`
+                : "Your request to join wasn't approved",
+            );
+          }
         },
       )
       .subscribe();
@@ -118,9 +149,13 @@ function TripDetail() {
     }
   }
 
-  async function updateMember(memberId: string, status: "approved" | "rejected") {
-    const { error } = await supabase.from("trip_members").update({ status }).eq("id", memberId);
+  async function updateMember(memberId: string, status: "approved" | "rejected", reason?: string | null) {
+    const { error } = await supabase
+      .from("trip_members")
+      .update({ status, ...(status === "rejected" ? { rejection_reason: reason ?? null } : {}) })
+      .eq("id", memberId);
     if (error) { toast.error(error.message); return; }
+    if (status === "rejected" && reason) trackEvent({ name: "join_request_declined", reasonTemplate: reason });
     toast.success(`Member ${status}`);
     refresh();
   }
@@ -146,6 +181,15 @@ function TripDetail() {
             <img src={trip.cover_image} alt={trip.destination} className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-sand via-sand/40 to-transparent" />
             <BackButton />
+            {!isOrganizer && (
+              <button
+                onClick={() => setReportOpen(true)}
+                aria-label="Report this trip"
+                className="warm-card text-ink absolute right-4 top-[calc(env(safe-area-inset-top)+12px)] grid h-10 w-10 place-items-center rounded-full"
+              >
+                <Flag className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div className="-mt-20 px-5">
@@ -155,10 +199,15 @@ function TripDetail() {
               <p className="fomo-heading text-primary mt-1.5 text-lg font-semibold">✨ {trip.vibe_summary}</p>
             )}
 
-            {(vibes.length > 0 || trip.solo_friendly) && (
+            {(vibes.length > 0 || trip.solo_friendly || trip.budget_flexibility) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {trip.solo_friendly && (
                   <span className="rounded-full bg-teal/85 px-3 py-1 text-xs font-semibold text-black">🧍 Solo friendly</span>
+                )}
+                {trip.budget_flexibility && (
+                  <span className="warm-card text-ink rounded-full px-3 py-1 text-xs">
+                    {trip.budget_flexibility === "strict" ? "🎯 Strict budget" : "🌊 Flexible budget"}
+                  </span>
                 )}
                 {vibes.map((v) => (
                   <span key={v.id} className="warm-card text-ink rounded-full px-3 py-1 text-xs">{v.emoji} {v.label}</span>
@@ -167,7 +216,11 @@ function TripDetail() {
             )}
 
             {organizer && (
-              <div className="warm-card mt-5 flex items-center gap-3 rounded-2xl p-3">
+              <Link
+                to="/profile/$userId"
+                params={{ userId: organizer.id }}
+                className="warm-card mt-5 flex items-center gap-3 rounded-2xl p-3 transition hover:bg-ink/5"
+              >
                 {organizer.avatar_url ? (
                   <img src={organizer.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover" />
                 ) : (
@@ -177,7 +230,10 @@ function TripDetail() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-ink/60">Organized by</p>
-                  <p className="text-ink font-semibold truncate">{organizer.full_name}</p>
+                  <p className="text-ink font-semibold truncate">
+                    {organizer.full_name}
+                    {organizer.email_verified && <span className="text-pine ml-1 text-xs font-semibold">✓</span>}
+                  </p>
                   <p className="mt-0.5 truncate text-[11px] text-ink/50">
                     {organizerStats && (
                       <>
@@ -188,11 +244,16 @@ function TripDetail() {
                     )}
                     {organizer.created_at && formatMemberSince(organizer.created_at)}
                   </p>
+                  {organizer.response_time_expectation && (
+                    <p className="mt-0.5 truncate text-[11px] text-ink/50">
+                      {RESPONSE_TIME_LABELS[organizer.response_time_expectation]}
+                    </p>
+                  )}
                 </div>
                 {organizer.travel_personality && (
                   <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-primary">{organizer.travel_personality}</span>
                 )}
-              </div>
+              </Link>
             )}
 
             <div className="mt-4 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -221,6 +282,15 @@ function TripDetail() {
             {isOrganizer && (
               <p className="mt-3 text-xs text-ink/50">
                 {pending.length} requested · {approved.length} approved
+              </p>
+            )}
+
+            {/* Item 13 — count + first names only, never full profiles/avatars,
+                and only ever shown to approved members (see the effect above). */}
+            {pendingProfiles.length > 0 && (
+              <p className="mt-3 text-xs text-ink/50">
+                {pendingProfiles.length} more {pendingProfiles.length === 1 ? "person has" : "people have"} requested to join:{" "}
+                {pendingProfiles.map((p) => p.full_name?.split(" ")[0] ?? "Someone").join(", ")}
               </p>
             )}
 
@@ -261,6 +331,13 @@ function TripDetail() {
               ) : (
                 <>
                   <p className="mb-2 text-center text-xs text-ink/60">{spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left</p>
+                  {/* Item 5 — split-cost preview surfaced right before joining,
+                      not just after; reuses the same pp already computed above. */}
+                  {pp && (
+                    <p className="mb-2 text-center text-xs font-medium text-ink/50">
+                      💰 ~${pp.min}–{pp.max} per person if the trip fills up
+                    </p>
+                  )}
                   <button
                     onClick={() => {
                       trackEvent({ name: "join_request_started", tripId, isFirstEver: isFirstEverRequest });
@@ -294,6 +371,8 @@ function TripDetail() {
             }}
           />
         )}
+
+        <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} targetType="trip" targetId={tripId} />
 
         <BottomNav />
         <Outlet />
@@ -342,27 +421,48 @@ function InfoCard({ icon, label, value, sub }: { icon: React.ReactNode; label: s
   );
 }
 
-function PendingRow({ memberId, userId, onUpdate }: { memberId: string; userId: string; onUpdate: (id: string, s: "approved" | "rejected") => void }) {
+function PendingRow({ memberId, userId, onUpdate }: { memberId: string; userId: string; onUpdate: (id: string, s: "approved" | "rejected", reason?: string | null) => void }) {
   const [profile, setProfile] = useState<any>(null);
+  const [declineOpen, setDeclineOpen] = useState(false);
   useEffect(() => {
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle().then(({ data }) => setProfile(data));
   }, [userId]);
   if (!profile) return null;
   return (
-    <div className="warm-card flex items-center gap-3 rounded-2xl p-3">
-      {profile.avatar_url ? (
-        <img src={profile.avatar_url} className="h-10 w-10 rounded-full object-cover" alt="" />
-      ) : (
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/20 font-bold text-primary">{profile.full_name?.slice(0, 1)}</div>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-ink truncate font-semibold text-sm">{profile.full_name}</p>
-        <p className="truncate text-xs text-ink/60">{profile.travel_personality ?? "Traveler"}</p>
-        {profile.created_at && <p className="truncate text-[10px] text-ink/40">{formatMemberSince(profile.created_at)}</p>}
+    // Note: the decline modal is mounted as a SIBLING of this warm-card div,
+    // not nested inside it — warm-card's backdrop-filter creates a new CSS
+    // containing block, which would otherwise confine a `fixed` modal to
+    // this small card's bounds instead of the full viewport.
+    <>
+      <div className="warm-card flex items-center gap-3 rounded-2xl p-3">
+        <Link to="/profile/$userId" params={{ userId }} className="flex flex-1 min-w-0 items-center gap-3">
+          {profile.avatar_url ? (
+            <img src={profile.avatar_url} className="h-10 w-10 rounded-full object-cover" alt="" />
+          ) : (
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/20 font-bold text-primary">{profile.full_name?.slice(0, 1)}</div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-ink truncate font-semibold text-sm">
+              {profile.full_name}
+              {profile.email_verified && <span className="text-pine ml-1 text-[10px] font-semibold">✓</span>}
+            </p>
+            <p className="truncate text-xs text-ink/60">{profile.travel_personality ?? "Traveler"}</p>
+            {profile.created_at && <p className="truncate text-[10px] text-ink/40">{formatMemberSince(profile.created_at)}</p>}
+          </div>
+        </Link>
+        <button onClick={() => setDeclineOpen(true)} className="warm-card text-ink/60 rounded-full px-3 py-1.5 text-xs">Decline</button>
+        <button onClick={() => onUpdate(memberId, "approved")} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Approve</button>
       </div>
-      <button onClick={() => onUpdate(memberId, "rejected")} className="warm-card text-ink/60 rounded-full px-3 py-1.5 text-xs">Decline</button>
-      <button onClick={() => onUpdate(memberId, "approved")} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Approve</button>
-    </div>
+
+      <DeclineReasonModal
+        open={declineOpen}
+        onClose={() => setDeclineOpen(false)}
+        onConfirm={(reason) => {
+          setDeclineOpen(false);
+          onUpdate(memberId, "rejected", reason);
+        }}
+      />
+    </>
   );
 }
 

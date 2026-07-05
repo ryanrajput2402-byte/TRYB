@@ -14,8 +14,11 @@ import {
   deriveDestinationOptions,
   tripDateBucket,
   tripSizeBucket,
+  tripBudgetBucket,
+  costPerPerson,
   DateBucket,
   SizeBucket,
+  BudgetBucket,
 } from "@/lib/trip-urgency";
 import { useAppTheme } from "@/lib/theme-context";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
@@ -45,6 +48,14 @@ const SIZE_BUCKETS: { id: SizeBucket; label: string }[] = [
   { id: "medium", label: "Medium · 5–8" },
   { id: "large", label: "Large · 9+" },
 ];
+// Item 3 — a prominent, primary Discover filter (not lumped in with the
+// others below). Bucketed off the same real costPerPerson everywhere else.
+const BUDGET_BUCKETS: { id: BudgetBucket; label: string }[] = [
+  { id: "any", label: "Any budget" },
+  { id: "budget", label: "Budget-friendly · ≤$100pp" },
+  { id: "mid", label: "Mid-range · $100–300pp" },
+  { id: "premium", label: "Premium · $300+pp" },
+];
 
 type Profile = { id: string; full_name: string; avatar_url: string | null; created_at?: string };
 
@@ -63,6 +74,7 @@ function Discover() {
   const [selectedDestination, setSelectedDestination] = useState<string | null>(null);
   const [dateBucket, setDateBucket] = useState<DateBucket>("any");
   const [sizeBucket, setSizeBucket] = useState<SizeBucket>("any");
+  const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("any");
   const [soloOnly, setSoloOnly] = useState(false);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +180,9 @@ function Discover() {
     if (sizeBucket !== "any") {
       results = results.filter((t) => tripSizeBucket(t.max_members) === sizeBucket);
     }
+    if (budgetBucket !== "any") {
+      results = results.filter((t) => tripBudgetBucket(costPerPerson(t)) === budgetBucket);
+    }
     if (soloOnly) {
       results = results.filter((t) => t.solo_friendly);
     }
@@ -185,9 +200,9 @@ function Discover() {
       );
     }
     return results;
-  }, [trips, selectedDestination, dateBucket, sizeBucket, soloOnly, filter, q]);
+  }, [trips, selectedDestination, dateBucket, sizeBucket, budgetBucket, soloOnly, filter, q]);
 
-  const isFiltered = !!selectedDestination || dateBucket !== "any" || sizeBucket !== "any" || soloOnly || filter !== "All" || !!q.trim();
+  const isFiltered = !!selectedDestination || dateBucket !== "any" || sizeBucket !== "any" || budgetBucket !== "any" || soloOnly || filter !== "All" || !!q.trim();
 
   const emptyMessage = q.trim()
     ? `No trips match "${q.trim()}" — start one?`
@@ -224,6 +239,29 @@ function Discover() {
 
           {!q && (
             <>
+              {/* Item 3 — a prominent, primary filter, deliberately styled
+                  bigger/bolder than the others below rather than lumped in
+                  with them. */}
+              <div className="warm-card mt-4 rounded-2xl p-3.5">
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-ink">💰 Trips in your budget</p>
+                <div className="flex flex-wrap gap-2">
+                  {BUDGET_BUCKETS.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => {
+                        setBudgetBucket(b.id);
+                        trackEvent({ name: "discover_filter_used", filterType: "budget", value: b.id });
+                      }}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                        budgetBucket === b.id ? "bg-primary text-cream" : "bg-ink/5 text-ink/70"
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {destinationOptions.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink/40">Destination</p>

@@ -12,7 +12,10 @@ export type AnalyticsEvent =
   | { name: "save_tapped"; tripId: string; saved: boolean }
   // Group D, item 1 — every Discover filter interaction, tagged by axis, so
   // usage across destination/date/size/vibe/solo is directly comparable.
-  | { name: "discover_filter_used"; filterType: "destination" | "date" | "size" | "vibe" | "solo"; value: string }
+  | { name: "discover_filter_used"; filterType: "destination" | "date" | "size" | "vibe" | "solo" | "budget"; value: string }
+  // Group E, item 1 — a new user-facing flow step (adding an informal
+  // running-spend estimate in chat), tracked the same way as everything else.
+  | { name: "spend_estimate_added"; tripId: string; amount: number }
   // Group D, item 2 — isolated from the general filter event above so the
   // solo-traveler hypothesis can be measured on its own, not buried in a
   // filterType breakdown.
@@ -23,7 +26,13 @@ export type AnalyticsEvent =
   // user+trip, real data only, never a guessed live flag.
   | { name: "join_request_started"; tripId: string; isFirstEver: boolean }
   | { name: "join_request_cancelled"; tripId: string }
-  | { name: "join_request_submitted"; tripId: string };
+  | { name: "join_request_submitted"; tripId: string }
+  // Group F, item 10 — target type only, never the reason/details (those
+  // live solely in the write-only moderation_reports table).
+  | { name: "report_submitted"; targetType: "trip" | "user" }
+  // Group F, item 14 — a new flow step (organizer picks a template reason
+  // when declining), tracked the same way as everything else.
+  | { name: "join_request_declined"; reasonTemplate: string };
 
 export function trackEvent(event: AnalyticsEvent) {
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
