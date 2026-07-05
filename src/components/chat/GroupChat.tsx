@@ -840,7 +840,6 @@ export function GroupChat({ tripId }: { tripId: string }) {
         <PinnedStrip
           activePollMessage={activePollMessage}
           balance={balance}
-          currency={tripCurrency}
           onScrollToPoll={() => activePollMessage && scrollToMessage(activePollMessage.id)}
           estimateSum={estimateSum}
           expensesTotal={expensesTotal}
@@ -974,7 +973,6 @@ export function GroupChat({ tripId }: { tripId: string }) {
         open={expenseOpen}
         onOpenChange={setExpenseOpen}
         members={members}
-        currency={tripCurrency}
         onSubmit={createExpense}
         submitting={creatingExpense}
         themeClassName={themeClassName}
@@ -989,7 +987,6 @@ export function GroupChat({ tripId }: { tripId: string }) {
       <SpendEstimateDialog
         open={estimateOpen}
         onOpenChange={setEstimateOpen}
-        currency={tripCurrency}
         onSubmit={addSpendEstimate}
         submitting={addingEstimate}
         themeClassName={themeClassName}
@@ -1064,7 +1061,6 @@ function ChatHeader({
 function PinnedStrip({
   activePollMessage,
   balance,
-  currency,
   onScrollToPoll,
   estimateSum,
   expensesTotal,
@@ -1075,7 +1071,6 @@ function PinnedStrip({
 }: {
   activePollMessage: ChatMessage | null;
   balance: { owe: number; owed: number };
-  currency: string;
   onScrollToPoll: () => void;
   estimateSum: number;
   expensesTotal: number;
@@ -1132,7 +1127,7 @@ function PinnedStrip({
                   <>
                     You're owed{" "}
                     <span className="text-pine font-semibold">
-                      {currency} {balance.owed.toFixed(2)}
+                      ₹{balance.owed.toFixed(2)}
                     </span>
                   </>
                 )}
@@ -1141,7 +1136,7 @@ function PinnedStrip({
                   <>
                     You owe{" "}
                     <span className="font-semibold text-clay">
-                      {currency} {balance.owe.toFixed(2)}
+                      ₹{balance.owe.toFixed(2)}
                     </span>
                   </>
                 )}
@@ -1159,7 +1154,7 @@ function PinnedStrip({
                   <>
                     ~
                     <span className="font-semibold text-ink">
-                      {currency} {estimateSum.toFixed(0)}
+                      ₹{estimateSum.toFixed(0)}
                     </span>{" "}
                     estimated so far
                   </>
@@ -1182,7 +1177,7 @@ function PinnedStrip({
                   <span key={c.category}>
                     {i > 0 && " · "}
                     {EXPENSE_CATEGORIES.find((e) => e.id === c.category)?.label ?? "Other"}{" "}
-                    {currency} {c.perPerson.toFixed(0)}/person
+                    ₹{c.perPerson.toFixed(0)}/person
                   </span>
                 ))}
               </p>
@@ -1205,7 +1200,7 @@ function PinnedStrip({
                   />
                 </div>
                 <p className="mt-1 text-[10px] text-ink/45">
-                  {currency} {expensesTotal.toFixed(0)} logged of {currency} {budgetMax} budget
+                  ₹{expensesTotal.toFixed(0)} logged of ₹{budgetMax} budget
                 </p>
               </div>
             )}
@@ -1440,12 +1435,12 @@ function ExpenseCard({
         )}
       </div>
       <p className="fomo-heading mt-2 text-lg font-bold text-ink">
-        {meta.currency} {meta.amount}
+        ₹{meta.amount}
       </p>
       <p className="text-sm text-ink/65">{meta.description}</p>
       <p className="mt-2 text-xs text-ink/45">
         {payerName} paid · split {splitAmong.length} way{splitAmong.length === 1 ? "" : "s"} (~
-        {meta.currency} {perPerson} each)
+        ₹{perPerson} each)
       </p>
       <Button
         type="button"
@@ -1519,7 +1514,6 @@ function ExpenseDialog({
   open,
   onOpenChange,
   members,
-  currency,
   onSubmit,
   submitting,
   themeClassName,
@@ -1527,7 +1521,6 @@ function ExpenseDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   members: Member[];
-  currency: string;
   onSubmit: (input: { description: string; amount: number; splitAmong: string[]; category: string }) => void;
   submitting: boolean;
   themeClassName: string;
@@ -1575,7 +1568,7 @@ function ExpenseDialog({
           />
           <Input
             type="number"
-            placeholder={`Amount (${currency})`}
+            placeholder="Amount (₹)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="border-ink/15 bg-white/50 text-ink placeholder:text-ink/35"
@@ -1632,19 +1625,17 @@ function ExpenseDialog({
   );
 }
 
-// Group E, item 1 — a quick, informal line ("flights ~$200"), never a
+// Group E, item 1 — a quick, informal line ("flights ~₹15,000"), never a
 // settled/split expense. Any approved member can add one.
 function SpendEstimateDialog({
   open,
   onOpenChange,
-  currency,
   onSubmit,
   submitting,
   themeClassName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currency: string;
   onSubmit: (input: { amount: number; note: string }) => void;
   submitting: boolean;
   themeClassName: string;
@@ -1676,7 +1667,7 @@ function SpendEstimateDialog({
         <div className="space-y-3">
           <Input
             type="number"
-            placeholder={`Amount (${currency})`}
+            placeholder="Amount (₹)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="border-ink/15 bg-white/50 text-ink placeholder:text-ink/35"

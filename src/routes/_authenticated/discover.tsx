@@ -52,9 +52,9 @@ const SIZE_BUCKETS: { id: SizeBucket; label: string }[] = [
 // others below). Bucketed off the same real costPerPerson everywhere else.
 const BUDGET_BUCKETS: { id: BudgetBucket; label: string }[] = [
   { id: "any", label: "Any budget" },
-  { id: "budget", label: "Budget-friendly · ≤$100pp" },
-  { id: "mid", label: "Mid-range · $100–300pp" },
-  { id: "premium", label: "Premium · $300+pp" },
+  { id: "budget", label: "Budget-friendly · ≤₹5,000pp" },
+  { id: "mid", label: "Mid-range · ₹5,000–15,000pp" },
+  { id: "premium", label: "Premium · ₹15,000+pp" },
 ];
 
 type Profile = { id: string; full_name: string; avatar_url: string | null; created_at?: string };

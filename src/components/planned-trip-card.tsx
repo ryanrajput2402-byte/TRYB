@@ -165,7 +165,7 @@ export function PlannedTripCard({
         </div>
         <p className={`mt-0.5 text-white/70 ${featured ? "text-sm" : "text-xs"}`}>
           {dateRange}
-          {pp && <span className="text-white/50"> · ~${pp.min}–{pp.max}/person</span>}
+          {pp && <span className="text-white/50"> · ~₹{pp.min}–{pp.max}/person</span>}
         </p>
         {trip.vibe_summary && (
           <p className={`mt-1 line-clamp-1 font-medium text-white/85 ${featured ? "text-sm" : "text-[11px]"}`}>

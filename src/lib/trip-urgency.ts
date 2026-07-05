@@ -149,8 +149,8 @@ export function tripSizeBucket(maxMembers: number): Exclude<SizeBucket, "any"> {
 // Cost-per-person — split against max_members (the trip's intended
 // capacity), not current confirmed count. Splitting by confirmed members
 // would swing wildly and look misleadingly expensive while a trip is still
-// filling up (e.g. $500 budget / 1 confirmed organizer = "$500pp" days
-// before 5 more people join at the intended $83pp). max_members reflects
+// filling up (e.g. ₹15,000 budget / 1 confirmed organizer = "₹15,000pp" days
+// before 5 more people join at the intended ₹2,500pp). max_members reflects
 // what the organizer actually planned to split the cost across.
 export function costPerPerson(trip: { budget_min?: number | null; budget_max?: number | null; max_members: number }): { min: number; max: number } | null {
   if (trip.budget_min == null || trip.budget_max == null || trip.max_members <= 0) return null;
@@ -169,8 +169,8 @@ export function costPerPerson(trip: { budget_min?: number | null; budget_max?: n
 export type BudgetBucket = "any" | "budget" | "mid" | "premium";
 export function tripBudgetBucket(pp: { max: number } | null): Exclude<BudgetBucket, "any"> | null {
   if (!pp) return null;
-  if (pp.max <= 100) return "budget";
-  if (pp.max <= 300) return "mid";
+  if (pp.max <= 5000) return "budget";
+  if (pp.max <= 15000) return "mid";
   return "premium";
 }
 

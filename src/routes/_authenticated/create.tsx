@@ -35,8 +35,8 @@ function CreateTrip() {
     end_date: "",
     max_members: 6,
     description: "",
-    budget_min: 500,
-    budget_max: 2000,
+    budget_min: 15000,
+    budget_max: 40000,
     budget_flexibility: "flexible" as "flexible" | "strict",
     privacy: "public" as "public" | "private",
     solo_friendly: false,
@@ -150,8 +150,8 @@ function CreateTrip() {
               </div>
             </F>
             <div className="grid grid-cols-2 gap-3">
-              <F label="Budget min ($)"><input type="number" className="ipt" value={form.budget_min} onChange={(e) => setForm({ ...form, budget_min: Number(e.target.value) })} /></F>
-              <F label="Budget max ($)"><input type="number" className="ipt" value={form.budget_max} onChange={(e) => setForm({ ...form, budget_max: Number(e.target.value) })} /></F>
+              <F label="Budget min (₹)"><input type="number" className="ipt" value={form.budget_min} onChange={(e) => setForm({ ...form, budget_min: Number(e.target.value) })} /></F>
+              <F label="Budget max (₹)"><input type="number" className="ipt" value={form.budget_max} onChange={(e) => setForm({ ...form, budget_max: Number(e.target.value) })} /></F>
             </div>
             <F label="Budget flexibility">
               <div className="flex gap-2">

@@ -261,8 +261,8 @@ function TripDetail() {
               <InfoCard
                 icon={<Wallet className="h-4 w-4" />}
                 label="Budget"
-                value={trip.budget_min ? `$${trip.budget_min}–${trip.budget_max}` : "Flexible"}
-                sub={pp ? `~$${pp.min}–${pp.max}/person` : undefined}
+                value={trip.budget_min ? `₹${trip.budget_min}–${trip.budget_max}` : "Flexible"}
+                sub={pp ? `~₹${pp.min}–${pp.max}/person` : undefined}
               />
               <InfoCard icon={<Users className="h-4 w-4" />} label="Tribe" value={`${approved.length}/${trip.max_members}`} />
             </div>
@@ -335,7 +335,7 @@ function TripDetail() {
                       not just after; reuses the same pp already computed above. */}
                   {pp && (
                     <p className="mb-2 text-center text-xs font-medium text-ink/50">
-                      💰 ~${pp.min}–{pp.max} per person if the trip fills up
+                      💰 ~₹{pp.min}–{pp.max} per person if the trip fills up
                     </p>
                   )}
                   <button
