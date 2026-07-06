@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
+import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).catch("signup"),
@@ -73,31 +74,34 @@ function AuthPage() {
     }
   }
 
+  const themeClassName = seasonThemeClassName(DEFAULT_SEASON_THEME);
+
   return (
-    <div className="hero-glow relative min-h-screen bg-background px-6 py-10">
-      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <div className={`${themeClassName} relative min-h-screen overflow-hidden bg-sand px-6 py-10`}>
+      <div className="warm-aurora" aria-hidden />
+      <Link to="/" className="relative inline-flex items-center gap-1.5 text-sm text-ink/60 hover:text-ink">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
-      <div className="mx-auto mt-10 w-full max-w-md">
-        <h1 className="font-display text-4xl font-bold tracking-tight">
+      <div className="relative mx-auto mt-10 w-full max-w-md">
+        <h1 className="fomo-heading text-ink text-4xl font-bold tracking-tight">
           {isSignup ? "Join the tribe" : "Welcome back"}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-ink/60">
           {isSignup ? "Create an account in 30 seconds." : "Sign in to see your trips."}
         </p>
 
         <button
           onClick={signInGoogle}
           disabled={googleLoading}
-          className="glass-card mt-8 flex w-full items-center justify-center gap-3 rounded-2xl px-4 py-3.5 font-medium transition hover:bg-surface-elevated disabled:opacity-50"
+          className="warm-card shadow-warm text-ink mt-8 flex w-full items-center justify-center gap-3 rounded-2xl px-4 py-3.5 font-medium transition hover:opacity-90 disabled:opacity-50"
         >
           {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
           Continue with Google
         </button>
 
-        <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-glass-border" /> OR <div className="h-px flex-1 bg-glass-border" />
+        <div className="my-6 flex items-center gap-3 text-xs text-ink/40">
+          <div className="bg-ink/10 h-px flex-1" /> OR <div className="bg-ink/10 h-px flex-1" />
         </div>
 
         <form onSubmit={onSubmit} className="space-y-3">
@@ -107,7 +111,7 @@ function AuthPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Alex Rivers"
-                className="input"
+                className="ipt"
                 autoComplete="name"
                 required
               />
@@ -119,7 +123,7 @@ function AuthPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@email.com"
-              className="input"
+              className="ipt"
               autoComplete="email"
               required
             />
@@ -130,7 +134,7 @@ function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="input"
+              className="ipt"
               autoComplete={isSignup ? "new-password" : "current-password"}
               minLength={6}
               required
@@ -140,14 +144,14 @@ function AuthPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition hover:scale-[1.01] disabled:opacity-60"
+            className="bg-primary text-cream mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold shadow-[var(--shadow-glow)] transition hover:scale-[1.01] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {isSignup ? "Create account" : "Sign in"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-ink/60">
           {isSignup ? "Already a member?" : "New to TRYB?"}{" "}
           <Link
             to="/auth"
@@ -158,8 +162,6 @@ function AuthPage() {
           </Link>
         </p>
       </div>
-
-      <style>{`.input{width:100%;border-radius:1rem;background:var(--surface);border:1px solid var(--glass-border);padding:0.85rem 1rem;color:var(--foreground);outline:none;transition:border-color .2s}.input:focus{border-color:var(--primary)}`}</style>
     </div>
   );
 }
@@ -167,7 +169,7 @@ function AuthPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-ink/50 mb-1.5 block text-xs font-medium">{label}</span>
       {children}
     </label>
   );

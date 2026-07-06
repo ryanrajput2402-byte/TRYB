@@ -46,7 +46,7 @@ function AuthedLayout() {
   const themeClassName = seasonThemeClassName(theme.preference ?? DEFAULT_SEASON_THEME);
   return (
     <ThemeContext.Provider value={theme}>
-      <div className={`${themeClassName} min-h-screen bg-background pb-24`}>
+      <div className={`${themeClassName} min-h-screen pb-24`}>
         <Outlet />
       </div>
     </ThemeContext.Provider>

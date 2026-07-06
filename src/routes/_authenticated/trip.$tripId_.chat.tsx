@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupChat } from "@/components/chat/GroupChat";
+import { useAppTheme } from "@/lib/theme-context";
+import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 export const Route = createFileRoute("/_authenticated/trip/$tripId_/chat")({
   head: () => ({ meta: [{ title: "Group chat — TRYB" }] }),
@@ -11,6 +13,8 @@ export const Route = createFileRoute("/_authenticated/trip/$tripId_/chat")({
 function ChatPage() {
   const { tripId } = Route.useParams();
   const [status, setStatus] = useState<"checking" | "allowed" | "denied">("checking");
+  const { preference: themePreference } = useAppTheme();
+  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,20 +34,21 @@ function ChatPage() {
     };
   }, [tripId]);
 
-  if (status === "checking") return <div className="min-h-screen bg-background" />;
+  if (status === "checking") return <div className={`${themeClassName} min-h-screen bg-sand`} />;
 
   if (status === "denied") {
     return (
-      <div className="hero-glow flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <div className="glass-card rounded-3xl p-8 max-w-md">
-          <h1 className="font-display text-2xl font-bold">You're not in this trip yet</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+      <div className={`${themeClassName} relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-sand px-6 text-center`}>
+        <div className="warm-aurora" aria-hidden />
+        <div className="warm-card shadow-warm relative max-w-md rounded-3xl p-8">
+          <h1 className="fomo-heading text-ink text-2xl font-bold">You're not in this trip yet</h1>
+          <p className="mt-2 text-sm text-ink/60">
             Join the trip and get approved by the organizer to see the group chat.
           </p>
           <Link
             to="/trip/$tripId"
             params={{ tripId }}
-            className="mt-6 inline-block rounded-full bg-primary px-6 py-2.5 font-semibold text-primary-foreground"
+            className="bg-primary text-cream mt-6 inline-block rounded-full px-6 py-2.5 font-semibold"
           >
             ← Back to trip
           </Link>
