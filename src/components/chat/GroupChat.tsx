@@ -588,10 +588,28 @@ export function GroupChat({ tripId }: { tripId: string }) {
     setSending(true);
     setComposerText("");
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("messages")
-        .insert({ trip_id: tripId, sender_id: currentUserId, message_type: "text", content: text });
+        .insert({ trip_id: tripId, sender_id: currentUserId, message_type: "text", content: text })
+        .select()
+        .single();
       if (error) throw error;
+
+      // Add the sender's own message immediately instead of waiting on the
+      // realtime echo — mirrors createPoll's merge-not-duplicate pattern via
+      // the postgres_changes handler's own m.id === row.id de-dupe check.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === inserted.id)) return prev;
+        return [
+          ...prev,
+          {
+            ...inserted,
+            metadata: inserted.metadata ?? {},
+            reactions: [],
+            poll: null,
+          } as ChatMessage,
+        ];
+      });
 
       const keyoMatch = text.match(/^\/keyo\s*(.*)$/i);
       if (keyoMatch) {
