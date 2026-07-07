@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
+import { LoginMapPanel } from "@/components/login-map-panel";
+import { PullLampOverlay } from "@/components/pull-lamp-overlay";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).catch("signup"),
@@ -77,91 +79,100 @@ function AuthPage() {
   const themeClassName = seasonThemeClassName(DEFAULT_SEASON_THEME);
 
   return (
-    <div className={`${themeClassName} relative min-h-screen overflow-hidden bg-sand px-6 py-10`}>
-      <div className="warm-aurora" aria-hidden />
-      <Link to="/" className="relative inline-flex items-center gap-1.5 text-sm text-ink/60 hover:text-ink">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Link>
+    <div className={`${themeClassName} relative min-h-screen overflow-hidden`}>
+      {/* Full-page background — the entire screen is the light source's
+          canvas, not a boxed subsection. Always rendered at full brightness;
+          PullLampOverlay paints the dim/lit illusion on top of everything,
+          map and form alike. */}
+      <LoginMapPanel />
 
-      <div className="relative mx-auto mt-10 w-full max-w-md">
-        <h1 className="fomo-heading text-ink text-4xl font-bold tracking-tight">
-          {isSignup ? "Join the tribe" : "Welcome back"}
-        </h1>
-        <p className="mt-2 text-sm text-ink/60">
-          {isSignup ? "Create an account in 30 seconds." : "Sign in to see your trips."}
-        </p>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-24">
+        <Link to="/" className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-cream/80 hover:text-cream sm:left-8 sm:top-8">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Link>
 
-        <button
-          onClick={signInGoogle}
-          disabled={googleLoading}
-          className="warm-card shadow-warm text-ink mt-8 flex w-full items-center justify-center gap-3 rounded-2xl px-4 py-3.5 font-medium transition hover:opacity-90 disabled:opacity-50"
-        >
-          {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-          Continue with Google
-        </button>
+        <div className="warm-card shadow-warm w-full max-w-md rounded-3xl p-6 sm:p-8">
+          <h1 className="fomo-heading text-ink text-4xl font-bold tracking-tight">
+            {isSignup ? "Join the tribe" : "Welcome back"}
+          </h1>
+          <p className="mt-2 text-sm text-ink/60">
+            {isSignup ? "Create an account in 30 seconds." : "Sign in to see your trips."}
+          </p>
 
-        <div className="my-6 flex items-center gap-3 text-xs text-ink/40">
-          <div className="bg-ink/10 h-px flex-1" /> OR <div className="bg-ink/10 h-px flex-1" />
-        </div>
+          <button
+            onClick={signInGoogle}
+            disabled={googleLoading}
+            className="shadow-warm-sm text-ink mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-cream px-4 py-3.5 font-medium transition hover:opacity-90 disabled:opacity-50"
+          >
+            {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            Continue with Google
+          </button>
 
-        <form onSubmit={onSubmit} className="space-y-3">
-          {isSignup && (
-            <Field label="Full name">
+          <div className="my-6 flex items-center gap-3 text-xs text-ink/40">
+            <div className="bg-ink/10 h-px flex-1" /> OR <div className="bg-ink/10 h-px flex-1" />
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-3">
+            {isSignup && (
+              <Field label="Full name">
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Alex Rivers"
+                  className="ipt"
+                  autoComplete="name"
+                  required
+                />
+              </Field>
+            )}
+            <Field label="Email">
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Alex Rivers"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
                 className="ipt"
-                autoComplete="name"
+                autoComplete="email"
                 required
               />
             </Field>
-          )}
-          <Field label="Email">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@email.com"
-              className="ipt"
-              autoComplete="email"
-              required
-            />
-          </Field>
-          <Field label="Password">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="ipt"
-              autoComplete={isSignup ? "new-password" : "current-password"}
-              minLength={6}
-              required
-            />
-          </Field>
+            <Field label="Password">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="ipt"
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                minLength={6}
+                required
+              />
+            </Field>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-primary text-cream mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold shadow-[var(--shadow-glow)] transition hover:scale-[1.01] disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSignup ? "Create account" : "Sign in"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-primary text-cream mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold shadow-[var(--shadow-glow)] transition hover:scale-[1.01] disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isSignup ? "Create account" : "Sign in"}
+            </button>
+          </form>
 
-        <p className="mt-6 text-center text-sm text-ink/60">
-          {isSignup ? "Already a member?" : "New to TRYB?"}{" "}
-          <Link
-            to="/auth"
-            search={{ mode: isSignup ? "login" : "signup" }}
-            className="font-semibold text-primary"
-          >
-            {isSignup ? "Sign in" : "Create one"}
-          </Link>
-        </p>
+          <p className="mt-6 text-center text-sm text-ink/60">
+            {isSignup ? "Already a member?" : "New to TRYB?"}{" "}
+            <Link
+              to="/auth"
+              search={{ mode: isSignup ? "login" : "signup" }}
+              className="font-semibold text-primary"
+            >
+              {isSignup ? "Sign in" : "Create one"}
+            </Link>
+          </p>
+        </div>
       </div>
+
+      <PullLampOverlay />
     </div>
   );
 }

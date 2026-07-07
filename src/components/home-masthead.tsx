@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 import { HOME_SLOGANS } from "@/lib/home-slogans";
+import { WORLD_MAP_URL } from "@/lib/world-map";
 
 const ROTATE_MS = 7_000;
 const FADE_MS = 500;
 
-// Finalized background: a real public-domain vector world map (Wikimedia
-// Commons, BlankMap-World.svg — solid continent fills, no fine engraving
-// detail, so it holds its silhouette under blur instead of turning to mush)
-// multiply-blended against the full-strength pine/clay gradient. White
-// "ocean" passes the gradient color through unchanged; gray "land" multiplies
-// to a richer, darker shade of that same gradient — continents read as real
-// shapes in one coherent warm hue. Composition tightened (reduced vertical
-// padding) so the box doesn't read as empty space around a text box.
-const WORLD_MAP_URL = "https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg";
+// Background: the shared world-map asset (see lib/world-map.ts), multiply-
+// blended against the full-strength pine/clay gradient. White "ocean" passes
+// the gradient color through unchanged; gray "land" multiplies to a richer,
+// darker shade of that same gradient — continents read as real shapes in one
+// coherent warm hue. Composition tightened (reduced vertical padding) so the
+// box doesn't read as empty space around a text box.
 
 export function HomeMasthead() {
   const reducedMotion = usePrefersReducedMotion();
