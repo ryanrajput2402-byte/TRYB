@@ -1,0 +1,25 @@
+// Section B — Home masthead rotator. Universal truths about the product,
+// never a named destination (that specificity belongs to the masonry grid
+// below). Warm, confident, 4-7 words each.
+export const HOME_SLOGANS: string[] = [
+  "Real trips. Real people.",
+  "No one has to go alone.",
+  "Someone's planning something right now.",
+  "Your next trip starts with one tap.",
+  "Strangers today, your crew by takeoff.",
+  "Every trip here began as an idea.",
+  "You don't need a plan, just people.",
+  "The best trips start as a maybe.",
+  "Somewhere, a group is missing you.",
+  "Good trips split better five ways.",
+  "Bring the maybe, we bring the people.",
+  "Nobody plans alone around here.",
+  "One idea, a few strangers, a trip.",
+  "Starting is always the hardest part.",
+  "Good company beats good luck.",
+  "The right people are already here.",
+  "Every great trip needed a first yes.",
+  "One match away from your next trip.",
+  "Group chats turn into real memories.",
+  "Solo plans become group trips here.",
+];

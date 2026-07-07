@@ -85,6 +85,12 @@ function Discover() {
   const [interestCounts, setInterestCounts] = useState<Map<string, number>>(new Map());
   const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
   const [registeringInterest, setRegisteringInterest] = useState(false);
+  // Phase 2 — Home's trip grid (the save feature's previous home) is now a
+  // destination grid, so saving a trip moves here, where trips are actually
+  // browsed. Same read path as before (Profile's "Saved" section still
+  // reads saved_trips directly), just relocated where you'd save one.
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [justSavedId, setJustSavedId] = useState<string | null>(null);
 
   // Same real-data shape as Home (going count, organizer, member faces) —
   // fetched independently since Discover's needs (no momentum-irrelevant
@@ -176,8 +182,33 @@ function Discover() {
       });
       setInterestCounts(counts);
       setMyInterests(mine);
+
+      if (u.user) {
+        const { data: sv } = await supabase.from("saved_trips").select("trip_id").eq("user_id", u.user.id);
+        setSaved(new Set((sv ?? []).map((r: any) => r.trip_id)));
+      }
     })();
   }, []);
+
+  async function toggleSave(tripId: string) {
+    if (!meId) return;
+    const isSaved = saved.has(tripId);
+    trackEvent({ name: "save_tapped", tripId, saved: !isSaved });
+    setSaved((s) => {
+      const n = new Set(s);
+      isSaved ? n.delete(tripId) : n.add(tripId);
+      return n;
+    });
+    if (!isSaved) {
+      setJustSavedId(tripId);
+      setTimeout(() => setJustSavedId((cur) => (cur === tripId ? null : cur)), 400);
+    }
+    if (isSaved) {
+      await supabase.from("saved_trips").delete().eq("trip_id", tripId).eq("user_id", meId);
+    } else {
+      await supabase.from("saved_trips").insert({ trip_id: tripId, user_id: meId });
+    }
+  }
 
   async function registerInterest(destination: string) {
     if (!meId || registeringInterest || myInterests.has(destination)) return;
@@ -496,6 +527,9 @@ function Discover() {
                     index={i}
                     featured={false}
                     tier={sizeTier(trip)}
+                    saved={saved.has(trip.id)}
+                    justSaved={justSavedId === trip.id}
+                    onSave={() => toggleSave(trip.id)}
                     reducedMotion={reducedMotion}
                     showOrganizer
                   />
