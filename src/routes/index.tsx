@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Compass, Users, Sparkles, MapPin, ArrowRight } from "lucide-react";
 import { DESTINATIONS } from "@/lib/destinations";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
+import { PullLampOverlay } from "@/components/pull-lamp-overlay";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -94,6 +95,8 @@ function Landing() {
           <Feature icon={<MapPin className="h-5 w-5" />} title="Keyo's in the chat" body="Splits costs. Settles debates. Right in the thread." />
         </div>
       </main>
+
+      <PullLampOverlay />
     </div>
   );
 }

@@ -19,6 +19,12 @@
 @import "@fontsource/plus-jakarta-sans/500.css";
 @import "@fontsource/plus-jakarta-sans/600.css";
 
+/* Home hero wordmark/subheader — Manrope 200, chosen over the app's default
+   Space Grotesk/fomo-heading bold display treatment specifically for this
+   hero: elegant/editorial/minimalist per an explicit design call, not a
+   replacement for fomo-heading elsewhere. */
+@import "@fontsource/manrope/200.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

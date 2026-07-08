@@ -2,32 +2,56 @@ import { useEffect, useRef, useState } from "react";
 import { Lamp } from "lucide-react";
 import { usePrefersReducedMotion } from "@/lib/use-reduced-motion";
 
-// Full-page light-source interaction for the login screen. The entire page
-// (map background + login form, both rendered underneath at full brightness
-// at all times) starts obscured by a near-black overlay. Pulling the cord
-// down punches an expanding circular "hole" in that overlay, centered on the
-// bulb's actual screen position — light spreading from a real point source,
-// not a flat screen-wide fade. Letting go before the pull threshold springs
-// the cord back up and the hole collapses to nothing.
+// Full-page light-source interaction — currently the landing page's
+// first-visit reveal. The entire page (floating photo cards + hero content,
+// rendered underneath at full brightness at all times) starts obscured by a
+// near-black overlay. Pulling the cord down punches an expanding circular
+// "hole" in that overlay, centered on the bulb's actual screen position —
+// light spreading from a real point source, not a flat screen-wide fade.
+// Letting go before the pull threshold springs the cord back up and the hole
+// collapses to nothing.
 //
-// The form underneath is always interactive (pointer-events: none on the
-// dark overlay itself, re-enabled only on the cord/tab) — a login form
-// gated behind a drag gesture would be a real accessibility regression, so
-// dimness here is purely visual, never a functional block.
+// The content underneath is always interactive (pointer-events: none on the
+// dark overlay itself, re-enabled only on the cord/tab) — gating the "Join
+// TRYB" / "I have an account" CTAs behind a drag gesture would be a real
+// accessibility regression, so dimness here is purely visual, never a
+// functional block.
 const PULL_RANGE = 140; // px of vertical drag to go from fully dim to fully lit
 const COMPLETE_THRESHOLD = 0.6; // pull past 60% and it snaps open the rest of the way
 const SNAP_MS = 550;
 const CORD_BASE = 34;
+const SEEN_KEY = "tryb:lamp-seen";
+
+function markSeen() {
+  window.localStorage.setItem(SEEN_KEY, "1");
+}
 
 export function PullLampOverlay() {
   const reducedMotion = usePrefersReducedMotion();
-  const [lit, setLit] = useState(false);
+  // Starts `false` to match the server-rendered default (same hydration-safe
+  // pattern as usePrefersReducedMotion itself — no window/localStorage on
+  // the server), corrected in an effect right after mount. A returning
+  // visitor briefly sees one dim frame before this flips, same trade-off
+  // already accepted for the reduced-motion correction elsewhere.
+  const [alreadySeen, setAlreadySeen] = useState(false);
 
-  if (reducedMotion) return <SimpleLampToggle lit={lit} onToggle={() => setLit((v) => !v)} />;
-  return <DraggableLampOverlay />;
+  useEffect(() => {
+    setAlreadySeen(window.localStorage.getItem(SEEN_KEY) === "1");
+  }, []);
+
+  // Reduced motion: fully lit immediately, no gesture required at all — not
+  // the old tap-to-reveal fallback (that only ever served the auth screen,
+  // which no longer uses this component).
+  useEffect(() => {
+    if (reducedMotion) markSeen();
+  }, [reducedMotion]);
+
+  if (reducedMotion || alreadySeen) return null;
+
+  return <DraggableLampOverlay onLit={markSeen} />;
 }
 
-function DraggableLampOverlay() {
+function DraggableLampOverlay({ onLit }: { onLit: () => void }) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const cordRef = useRef<HTMLDivElement | null>(null);
   const bulbGlowRef = useRef<HTMLDivElement | null>(null);
@@ -107,6 +131,7 @@ function DraggableLampOverlay() {
     setSnapTransition(true);
     const completed = progressRef.current >= COMPLETE_THRESHOLD;
     applyProgress(completed ? 1 : 0);
+    if (completed) onLit();
   }
 
   return (
@@ -140,33 +165,6 @@ function DraggableLampOverlay() {
         >
           Go ahead, wake the world up.
         </p>
-      </div>
-    </>
-  );
-}
-
-// prefers-reduced-motion fallback — no drag, no radial animation, just a
-// tap-to-fade to the lit state (or back), per spec.
-function SimpleLampToggle({ lit, onToggle }: { lit: boolean; onToggle: () => void }) {
-  return (
-    <>
-      <div
-        className="pointer-events-none fixed inset-0 z-40"
-        style={{ background: lit ? "rgba(8,6,4,0)" : "rgba(8,6,4,0.9)", transition: "background 200ms ease-out" }}
-        aria-hidden
-      />
-      <div className="fixed left-1/2 top-6 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-pressed={lit}
-          aria-label={lit ? "Dim the map" : "Light up the map"}
-          className="grid h-14 w-14 place-items-center rounded-full"
-          style={{ background: lit ? "var(--cream)" : "oklch(1 0 0 / 0.12)" }}
-        >
-          <Lamp className={lit ? "h-6 w-6 text-clay" : "h-6 w-6 text-cream/80"} />
-        </button>
-        {!lit && <p className="fomo-heading max-w-[10rem] text-center text-sm font-semibold text-cream/90 drop-shadow">Go ahead, wake the world up.</p>}
       </div>
     </>
   );

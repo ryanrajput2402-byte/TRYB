@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { LoginMapPanel } from "@/components/login-map-panel";
-import { PullLampOverlay } from "@/components/pull-lamp-overlay";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).catch("signup"),
@@ -80,10 +79,6 @@ function AuthPage() {
 
   return (
     <div className={`${themeClassName} relative min-h-screen overflow-hidden`}>
-      {/* Full-page background — the entire screen is the light source's
-          canvas, not a boxed subsection. Always rendered at full brightness;
-          PullLampOverlay paints the dim/lit illusion on top of everything,
-          map and form alike. */}
       <LoginMapPanel />
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-24">
@@ -171,8 +166,6 @@ function AuthPage() {
           </p>
         </div>
       </div>
-
-      <PullLampOverlay />
     </div>
   );
 }
