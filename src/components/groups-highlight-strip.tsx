@@ -43,13 +43,13 @@ export function GroupsHighlightStrip({ trips, livePlanners }: { trips: Highlight
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
           {trips.map((trip, i) => (
             <Link
               key={trip.id}
               to="/trip/$tripId"
               params={{ tripId: trip.id }}
-              className="shadow-warm-sm group relative aspect-[4/3] w-40 flex-shrink-0 overflow-hidden rounded-2xl"
+              className="shadow-warm group relative aspect-[4/3] w-40 flex-shrink-0 overflow-hidden rounded-3xl lg:w-auto"
             >
               <img
                 src={trip.cover_image ?? DESTINATIONS[i % DESTINATIONS.length].image}

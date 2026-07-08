@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { TopBar } from "@/components/top-bar";
 import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { ArrowLeft, Loader as Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader as Loader2 } from "lucide-react";
 import { DESTINATIONS, INTEREST_TAGS, findDestination } from "@/lib/destinations";
 import { Link } from "@tanstack/react-router";
 import { useAppTheme } from "@/lib/theme-context";
 import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Discover Feature 1/2 — "Start a trip here" pre-fills this from an
 // optional query param, still fully editable once here.
@@ -44,6 +45,8 @@ function CreateTrip() {
   });
   const [vibes, setVibes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [createdTrip, setCreatedTrip] = useState<{ id: string; destination: string } | null>(null);
+  const [posting, setPosting] = useState(false);
 
   function toggleVibe(id: string) {
     setVibes((v) => v.includes(id) ? v.filter(x => x !== id) : [...v, id]);
@@ -81,12 +84,43 @@ function CreateTrip() {
       }).select("id").single();
       if (error) throw error;
       toast.success("Trip created! 🎉");
-      navigate({ to: "/trip/$tripId", params: { tripId: data.id } });
+      // Phase 3 — prompt to announce the trip before navigating away, rather
+      // than folding it silently into the redirect.
+      setCreatedTrip({ id: data.id, destination: dest?.name ?? form.destination });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't create trip");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function postAnnouncement() {
+    if (!createdTrip || posting) return;
+    setPosting(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Not signed in");
+      const { error } = await supabase.from("posts").insert({
+        user_id: u.user.id,
+        trip_id: createdTrip.id,
+        post_type: "trip_announcement",
+        images: [],
+        caption: `Planning a trip to ${createdTrip.destination}!`,
+        destination: createdTrip.destination,
+      });
+      if (error) throw error;
+      toast.success("Posted to the feed 🌍");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't post this");
+    } finally {
+      setPosting(false);
+      navigate({ to: "/trip/$tripId", params: { tripId: createdTrip.id } });
+    }
+  }
+
+  function skipAnnouncement() {
+    if (!createdTrip) return;
+    navigate({ to: "/trip/$tripId", params: { tripId: createdTrip.id } });
   }
 
   const dest = findDestination(form.destination);
@@ -205,6 +239,37 @@ function CreateTrip() {
         </main>
         <BottomNav />
       </div>
+
+      <Dialog open={!!createdTrip} onOpenChange={(open) => !open && skipAnnouncement()}>
+        <DialogContent className={`${themeClassName} border-ink/10 bg-sand sm:rounded-3xl`}>
+          <DialogHeader>
+            <DialogTitle className="fomo-heading text-ink">Post about this trip?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-ink/60">
+            Let people know you're planning for {createdTrip?.destination} — it shows up instantly in the feed
+            everyone sees.
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={postAnnouncement}
+              disabled={posting}
+              className="bg-primary text-cream flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 font-semibold disabled:opacity-60"
+            >
+              {posting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Post it <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={skipAnnouncement}
+              disabled={posting}
+              className="warm-card text-ink flex-1 rounded-2xl py-3 font-medium disabled:opacity-60"
+            >
+              Skip
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
