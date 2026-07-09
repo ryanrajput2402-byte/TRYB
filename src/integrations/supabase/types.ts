@@ -361,6 +361,108 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          caption: string
+          created_at: string
+          destination: string | null
+          id: string
+          images: string[]
+          post_type: string
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          caption?: string
+          created_at?: string
+          destination?: string | null
+          id?: string
+          images?: string[]
+          post_type?: string
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          destination?: string | null
+          id?: string
+          images?: string[]
+          post_type?: string
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -373,12 +475,16 @@ export type Database = {
           group_preference: string | null
           id: string
           interests: string[] | null
+          last_destination: string | null
+          last_travel_date: string | null
           location: string | null
           onboarding_completed: boolean
           onboarding_intro_seen: boolean
           response_time_expectation: string | null
+          theme_preference: string | null
           travel_personality: string | null
           travel_style: string | null
+          travel_urgency_days: number | null
           trips_count: number
           updated_at: string
           username: string | null
@@ -395,12 +501,16 @@ export type Database = {
           group_preference?: string | null
           id: string
           interests?: string[] | null
+          last_destination?: string | null
+          last_travel_date?: string | null
           location?: string | null
           onboarding_completed?: boolean
           onboarding_intro_seen?: boolean
           response_time_expectation?: string | null
+          theme_preference?: string | null
           travel_personality?: string | null
           travel_style?: string | null
+          travel_urgency_days?: number | null
           trips_count?: number
           updated_at?: string
           username?: string | null
@@ -417,16 +527,59 @@ export type Database = {
           group_preference?: string | null
           id?: string
           interests?: string[] | null
+          last_destination?: string | null
+          last_travel_date?: string | null
           location?: string | null
           onboarding_completed?: boolean
           onboarding_intro_seen?: boolean
           response_time_expectation?: string | null
+          theme_preference?: string | null
           travel_personality?: string | null
           travel_style?: string | null
+          travel_urgency_days?: number | null
           trips_count?: number
           updated_at?: string
           username?: string | null
           vibe?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          creator_id: string
+          description: string
+          face_image: string
+          how_to_contribute: string
+          id: string
+          images: string[]
+          needs: string
+          title: string
+          what_solving: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          description?: string
+          face_image: string
+          how_to_contribute?: string
+          id?: string
+          images?: string[]
+          needs?: string
+          title: string
+          what_solving?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          description?: string
+          face_image?: string
+          how_to_contribute?: string
+          id?: string
+          images?: string[]
+          needs?: string
+          title?: string
+          what_solving?: string
         }
         Relationships: []
       }

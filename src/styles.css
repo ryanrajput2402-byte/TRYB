@@ -19,6 +19,14 @@
 @import "@fontsource/plus-jakarta-sans/500.css";
 @import "@fontsource/plus-jakarta-sans/600.css";
 
+/* TRYB design language — additive, opt-in via .tryb-theme (same pattern as
+   the season themes below). Fraunces is the serif display face used by the
+   `.display` utility; only loaded where tryb-theme pages use it. */
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/700.css";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -70,6 +78,15 @@
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
   --color-glass-border: var(--glass-border);
+
+  /* TRYB — brand tokens + shadow scale, real values set only inside
+     .tryb-theme (see below), same indirection trick as every color above. */
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-gold: var(--gold);
+  --shadow-soft: var(--tryb-shadow-soft);
+  --shadow-lift: var(--tryb-shadow-lift);
+  --shadow-float: var(--tryb-shadow-float);
 }
 
 :root {
@@ -418,6 +435,90 @@
   --primary-foreground: var(--cream);
   --ring: var(--clay);
   --shadow-glow: var(--shadow-glow-warm);
+}
+
+/* TRYB — the redesign's visual identity (warm paper canvas, ember accent,
+   dark "ink" hero/card moments, Fraunces serif display). Scoped the same
+   way as the season themes above: applied per-page via .tryb-theme as each
+   screen is migrated, so unmigrated screens are completely unaffected.
+   Once every screen has moved over, the season themes/picker above get
+   deleted and this becomes the app's only look. */
+@utility tryb-theme {
+  --background: oklch(0.965 0.012 83);
+  --foreground: oklch(0.245 0.014 62);
+  --card: oklch(0.99 0.008 85);
+  --card-foreground: oklch(0.245 0.014 62);
+  --popover: oklch(0.995 0.006 85);
+  --popover-foreground: oklch(0.245 0.014 62);
+
+  /* Ember — burnt sienna / clay signature accent */
+  --primary: oklch(0.575 0.135 42);
+  --primary-foreground: oklch(0.985 0.012 85);
+
+  --secondary: oklch(0.93 0.014 82);
+  --secondary-foreground: oklch(0.3 0.016 62);
+  --muted: oklch(0.925 0.014 82);
+  --muted-foreground: oklch(0.5 0.02 68);
+  --accent: oklch(0.9 0.022 80);
+  --accent-foreground: oklch(0.3 0.016 62);
+  --destructive: oklch(0.55 0.19 27);
+  --border: oklch(0.885 0.014 80);
+  --input: oklch(0.885 0.014 80);
+  --ring: oklch(0.575 0.135 42);
+
+  /* Brand extras */
+  --ink: oklch(0.205 0.018 62);
+  --ink-foreground: oklch(0.94 0.014 84);
+  --gold: oklch(0.72 0.11 78);
+
+  /* Rounder corners than the rest of the app — matches the mockup. */
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 14px);
+  --radius-3xl: calc(var(--radius) + 24px);
+
+  --tryb-shadow-soft: 0 1px 2px oklch(0.2 0.02 60 / 0.04), 0 8px 24px oklch(0.2 0.02 60 / 0.06);
+  --tryb-shadow-lift: 0 2px 6px oklch(0.2 0.02 60 / 0.06), 0 18px 48px oklch(0.2 0.02 60 / 0.12);
+  --tryb-shadow-float: 0 4px 12px oklch(0.2 0.02 60 / 0.08), 0 28px 70px oklch(0.2 0.02 60 / 0.18);
+
+  /* Chat role-slots (GroupChat.tsx) — same vocabulary the season themes
+     use (--sand-bg/--cream/--pine/--clay/--warm-ink/etc.), so the chat
+     screen picks up the TRYB palette without touching its own JSX.
+     --pine feeds vote-bar/checkmark/CTA; --clay feeds own-message bubbles
+     and poll/expense micro-labels — reusing the brand's ember + gold pair. */
+  --sand-bg: oklch(0.965 0.012 83);
+  --cream: oklch(0.99 0.008 85);
+  --pine: oklch(0.575 0.135 42);
+  --clay: oklch(0.72 0.11 78);
+  --warm-ink: oklch(0.245 0.014 62);
+  --warm-card-bg: oklch(0.99 0.008 85 / 0.85);
+  --warm-card-border: oklch(0.245 0.014 62 / 0.08);
+  --shadow-warm: 0 10px 30px -14px oklch(0.575 0.135 42 / 0.16);
+  --shadow-warm-sm: 0 2px 10px -4px oklch(0.575 0.135 42 / 0.14);
+  --gradient-earth: linear-gradient(120deg, oklch(0.575 0.135 42), oklch(0.72 0.11 78));
+  --gradient-earth-soft: linear-gradient(120deg, oklch(0.575 0.135 42 / 0.5), oklch(0.72 0.11 78 / 0.5));
+  --keyo-glow-shadow: 0 4px 20px -12px oklch(0.575 0.135 42 / 0.22);
+  --ambient-radial: radial-gradient(at 20% 0%, oklch(0.72 0.11 78 / 0.16), transparent 55%),
+                     radial-gradient(at 85% 30%, oklch(0.575 0.135 42 / 0.12), transparent 55%);
+  --shadow-glow-warm: 0 20px 60px -20px oklch(0.575 0.135 42 / 0.3);
+  --shadow-glow-warm-peak: 0 26px 72px -16px oklch(0.575 0.135 42 / 0.45);
+  --shadow-glow: var(--shadow-glow-warm);
+
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+@utility display {
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Slow breathing pulse — item 2. Was a hard "ping" blink before; this is a

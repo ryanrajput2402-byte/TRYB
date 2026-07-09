@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 export const Route = createFileRoute("/auth_/callback")({
   component: AuthCallback,
@@ -48,7 +47,7 @@ function AuthCallback() {
     };
   }, [navigate]);
   return (
-    <div className={`${seasonThemeClassName(DEFAULT_SEASON_THEME)} text-ink/60 grid min-h-screen place-items-center bg-sand`}>
+    <div className="tryb-theme grid min-h-screen place-items-center bg-background text-muted-foreground">
       Signing you in…
     </div>
   );

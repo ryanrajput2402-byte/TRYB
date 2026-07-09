@@ -1,56 +1,48 @@
-import {
-  createFileRoute,
-  Link,
-  Outlet,
-  useNavigate,
-  useRouter,
-} from "@tanstack/react-router";
-
+import { createFileRoute, Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { supabase } from "@/integrations/supabase/client";
-import { BottomNav } from "@/components/bottom-nav";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, Users, Wallet, Loader as Loader2, Check, Flag } from "lucide-react";
+import { ArrowLeft, Bookmark, Calendar, Flag, Loader as Loader2, Sparkles, Users, Wallet } from "lucide-react";
 import { ReportModal } from "@/components/report-modal";
 import { DeclineReasonModal } from "@/components/decline-reason-modal";
-import { format } from "date-fns";
 import { INTEREST_TAGS } from "@/lib/destinations";
-import { useAppTheme } from "@/lib/theme-context";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { costPerPerson, daysUntilStart, groupSizeProgression } from "@/lib/trip-urgency";
-import { formatMemberSince } from "@/lib/format-date";
+import { formatCompactRange, formatMemberSince } from "@/lib/format-date";
 import { trackEvent } from "@/lib/analytics";
 import { RESPONSE_TIME_LABELS } from "@/lib/profile-badges";
+import { spring } from "@/lib/motion";
+import { Avatar, AvatarStack, Eyebrow, PressBtn } from "@/components/tryb/ui-kit";
+import { FadeIn } from "@/components/tryb/motion-primitives";
+import { Dock } from "@/components/tryb/dock";
 
 export const Route = createFileRoute("/_authenticated/trip/$tripId")({
   head: () => ({ meta: [{ title: "Trip — TRYB" }] }),
   component: TripDetail,
 });
 
+type Profile = { id: string; full_name: string; avatar_url: string | null; created_at?: string; travel_personality?: string | null };
+
 function TripDetail() {
   const { tripId } = Route.useParams();
-  const navigate = useNavigate();
-  const { preference: themePreference } = useAppTheme();
-  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
   const [trip, setTrip] = useState<any>(null);
   const [organizer, setOrganizer] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [approvedProfiles, setApprovedProfiles] = useState<Profile[]>([]);
   const [me, setMe] = useState<any>(null);
   const [myMembership, setMyMembership] = useState<any>(null);
   const [requesting, setRequesting] = useState(false);
   const [organizerStats, setOrganizerStats] = useState<{ organized: number; completed: number } | null>(null);
-  // Item 4/5 gate — derived from real data, not a dismissal flag: true only
-  // if this user has never had a trip_members row as a 'member' before
-  // (any status, any trip). Independent of the onboarding intro's gate,
-  // which is tied to the one-time signup flow instead.
   const [isFirstEverRequest, setIsFirstEverRequest] = useState(false);
   const [showFirstRequestIntro, setShowFirstRequestIntro] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  // Item 13 — first-names-only, only ever fetched for approved non-organizer
-  // members. RLS already allows this (approved members can read every
-  // trip_members row for their trip), but a random visitor who hasn't been
-  // approved never triggers this fetch, so they never see who else applied.
+  const [saved, setSaved] = useState(false);
   const [pendingProfiles, setPendingProfiles] = useState<{ id: string; full_name: string }[]>([]);
+
+  const heroRef = { current: null as HTMLDivElement | null };
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 400], [0, 120]);
+  const scale = useTransform(scrollY, [-200, 0], [1.25, 1]);
 
   async function refresh() {
     const { data: u } = await supabase.auth.getUser();
@@ -62,6 +54,18 @@ function TripDetail() {
     setOrganizer(org);
     const { data: mems } = await supabase.from("trip_members").select("*").eq("trip_id", tripId);
     setMembers(mems ?? []);
+
+    const approvedIds = (mems ?? []).filter((m: any) => m.status === "approved").map((m: any) => m.user_id);
+    if (approvedIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, created_at, travel_personality")
+        .in("id", approvedIds);
+      setApprovedProfiles((profs ?? []) as Profile[]);
+    } else {
+      setApprovedProfiles([]);
+    }
+
     if (u.user) {
       const mine = (mems ?? []).find((m: any) => m.user_id === u.user!.id);
       setMyMembership(mine ?? null);
@@ -72,10 +76,15 @@ function TripDetail() {
         .eq("role", "member")
         .limit(1);
       setIsFirstEverRequest((priorRequests ?? []).length === 0);
+      const { data: sv } = await supabase
+        .from("saved_trips")
+        .select("trip_id")
+        .eq("user_id", u.user.id)
+        .eq("trip_id", tripId)
+        .maybeSingle();
+      setSaved(!!sv);
     }
 
-    // Organizer trust stats — same real definition as Profile's own stats
-    // (trips organized = organizer_id count, completed = end_date passed).
     const { data: organizerTrips } = await supabase.from("trips").select("end_date").eq("organizer_id", t.organizer_id);
     const today = new Date().toISOString().slice(0, 10);
     setOrganizerStats({
@@ -84,10 +93,11 @@ function TripDetail() {
     });
   }
 
-  useEffect(() => { refresh(); }, [tripId]);
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripId]);
 
-  // Item 13 — see the state comment above; only ever runs for approved
-  // non-organizer members, and only when there's real pending data to show.
   useEffect(() => {
     const isOrg = !!(me && trip && me.id === trip.organizer_id);
     const pendingIds = members.filter((m) => m.status === "pending").map((m) => m.user_id);
@@ -102,7 +112,6 @@ function TripDetail() {
       .then(({ data }) => setPendingProfiles(data ?? []));
   }, [members, me, trip, myMembership?.status]);
 
-  // So a pending requester sees their approval instantly instead of needing to refresh.
   useEffect(() => {
     if (!me?.id) return;
     const channel = supabase
@@ -136,7 +145,10 @@ function TripDetail() {
     setRequesting(true);
     try {
       const { error } = await supabase.from("trip_members").insert({
-        trip_id: tripId, user_id: me.id, status: "pending", role: "member",
+        trip_id: tripId,
+        user_id: me.id,
+        status: "pending",
+        role: "member",
       });
       if (error) throw error;
       trackEvent({ name: "join_request_submitted", tripId });
@@ -154,13 +166,29 @@ function TripDetail() {
       .from("trip_members")
       .update({ status, ...(status === "rejected" ? { rejection_reason: reason ?? null } : {}) })
       .eq("id", memberId);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     if (status === "rejected" && reason) trackEvent({ name: "join_request_declined", reasonTemplate: reason });
     toast.success(`Member ${status}`);
     refresh();
   }
 
-  if (!trip) return <div className={`${themeClassName} min-h-screen`} />;
+  async function toggleSave() {
+    if (!me) return;
+    trackEvent({ name: "save_tapped", tripId, saved: !saved });
+    setSaved((v) => !v);
+    if (saved) {
+      await supabase.from("saved_trips").delete().eq("trip_id", tripId).eq("user_id", me.id);
+    } else {
+      await supabase.from("saved_trips").insert({ trip_id: tripId });
+    }
+  }
+
+  if (!trip) {
+    return <div className="tryb-theme min-h-screen bg-background" />;
+  }
 
   const approved = members.filter((m) => m.status === "approved");
   const pending = members.filter((m) => m.status === "pending");
@@ -170,239 +198,329 @@ function TripDetail() {
   const pp = costPerPerson(trip);
   const daysToStart = daysUntilStart(trip);
   const progression = groupSizeProgression(trip, approved.map((m) => m.joined_at));
+  const crew: { id: string; name: string; avatar?: string | null }[] = approvedProfiles.map((p) => ({
+    id: p.id,
+    name: p.full_name,
+    avatar: p.avatar_url,
+  }));
 
   return (
-    <div className={`${themeClassName} relative min-h-screen`}>
-      <div className="warm-aurora" aria-hidden />
-      <div className="fomo-grain" aria-hidden />
-      <div className="relative" style={{ zIndex: 2 }}>
-        <main className="mx-auto max-w-2xl pb-32">
-          <div className="relative h-72 overflow-hidden">
-            <img src={trip.cover_image} alt={trip.destination} className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-sand via-sand/40 to-transparent" />
-            <BackButton />
+    <div className="tryb-theme relative mx-auto min-h-screen w-full max-w-[620px] bg-background pb-40 shadow-[0_0_120px_oklch(0.2_0.02_60_/_0.06)] sm:border-x sm:border-border/60">
+      {/* Immersive parallax hero */}
+      <div className="relative h-[68vh] min-h-[460px] overflow-hidden bg-ink">
+        <motion.img
+          src={trip.cover_image ?? "/placeholder.svg"}
+          alt={trip.destination}
+          style={{ y, scale }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/25 to-ink/40" />
+
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5 pt-[max(20px,env(safe-area-inset-top))]">
+          <BackButton />
+          <div className="flex gap-2">
+            <button
+              onClick={toggleSave}
+              aria-label="Save"
+              className="grid size-10 place-items-center rounded-full bg-ink/40 text-ink-foreground backdrop-blur-md transition-transform active:scale-90"
+            >
+              <Bookmark className={saved ? "size-5 fill-current text-primary" : "size-5"} />
+            </button>
             {!isOrganizer && (
               <button
                 onClick={() => setReportOpen(true)}
                 aria-label="Report this trip"
-                className="warm-card text-ink absolute right-4 top-[calc(env(safe-area-inset-top)+12px)] grid h-10 w-10 place-items-center rounded-full"
+                className="grid size-10 place-items-center rounded-full bg-ink/40 text-ink-foreground backdrop-blur-md transition-transform active:scale-90"
               >
-                <Flag className="h-4 w-4" />
+                <Flag className="size-[18px]" />
               </button>
             )}
           </div>
+        </div>
 
-          <div className="-mt-20 px-5">
-            <h1 className="fomo-heading text-ink text-4xl font-bold leading-tight">{trip.destination}</h1>
-            <p className="mt-1 text-base text-ink/60">{trip.title}</p>
-            {trip.vibe_summary && (
-              <p className="fomo-heading text-primary mt-1.5 text-lg font-semibold">✨ {trip.vibe_summary}</p>
-            )}
-
-            {(vibes.length > 0 || trip.solo_friendly || trip.budget_flexibility) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {trip.solo_friendly && (
-                  <span className="rounded-full bg-teal/85 px-3 py-1 text-xs font-semibold text-black">🧍 Solo friendly</span>
-                )}
-                {trip.budget_flexibility && (
-                  <span className="warm-card text-ink rounded-full px-3 py-1 text-xs">
-                    {trip.budget_flexibility === "strict" ? "🎯 Strict budget" : "🌊 Flexible budget"}
-                  </span>
-                )}
-                {vibes.map((v) => (
-                  <span key={v.id} className="warm-card text-ink rounded-full px-3 py-1 text-xs">{v.emoji} {v.label}</span>
-                ))}
-              </div>
-            )}
-
-            {organizer && (
-              <Link
-                to="/profile/$userId"
-                params={{ userId: organizer.id }}
-                className="warm-card mt-5 flex items-center gap-3 rounded-2xl p-3 transition hover:bg-ink/5"
-              >
-                {organizer.avatar_url ? (
-                  <img src={organizer.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover" />
-                ) : (
-                  <div className="grid h-12 w-12 place-items-center rounded-full bg-primary/20 font-bold text-primary">
-                    {organizer.full_name?.slice(0, 1)}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-ink/60">Organized by</p>
-                  <p className="text-ink font-semibold truncate">
-                    {organizer.full_name}
-                    {organizer.email_verified && <span className="text-pine ml-1 text-xs font-semibold">✓</span>}
-                  </p>
-                  <p className="mt-0.5 truncate text-[11px] text-ink/50">
-                    {organizerStats && (
-                      <>
-                        {organizerStats.organized} trip{organizerStats.organized === 1 ? "" : "s"} organized
-                        {organizerStats.completed > 0 ? `, ${organizerStats.completed} completed` : ""}
-                        {organizer.created_at && " · "}
-                      </>
-                    )}
-                    {organizer.created_at && formatMemberSince(organizer.created_at)}
-                  </p>
-                  {organizer.response_time_expectation && (
-                    <p className="mt-0.5 truncate text-[11px] text-ink/50">
-                      {RESPONSE_TIME_LABELS[organizer.response_time_expectation]}
-                    </p>
-                  )}
-                </div>
-                {organizer.travel_personality && (
-                  <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-primary">{organizer.travel_personality}</span>
-                )}
-              </Link>
-            )}
-
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <InfoCard icon={<Calendar className="h-4 w-4" />} label="Dates" value={`${format(new Date(trip.start_date), "MMM d")} – ${format(new Date(trip.end_date), "MMM d")}`} />
-              <InfoCard
-                icon={<Wallet className="h-4 w-4" />}
-                label="Budget"
-                value={trip.budget_min ? `₹${trip.budget_min}–${trip.budget_max}` : "Flexible"}
-                sub={pp ? `~₹${pp.min}–${pp.max}/person` : undefined}
-              />
-              <InfoCard icon={<Users className="h-4 w-4" />} label="Tribe" value={`${approved.length}/${trip.max_members}`} />
+        <div className="absolute inset-x-0 bottom-0 p-6 text-ink-foreground">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ ...spring.soft, delay: 0.1 }}>
+            <div className="flex items-center gap-1.5 text-sm text-ink-foreground/85">
+              <Calendar className="size-4" />
+              {formatCompactRange(trip.start_date, trip.end_date)}
             </div>
+            <h1 className="display mt-2 text-balance text-5xl font-semibold leading-[0.95]">{trip.destination}</h1>
+            <p className="mt-1 text-sm text-ink-foreground/70">{trip.title}</p>
+            <div className="mt-4 flex items-center gap-3">
+              <AvatarStack people={crew} size={34} max={4} />
+              <span className="text-sm text-ink-foreground/85">
+                {approved.length} going{organizer ? ` · hosted by ${organizer.full_name}` : ""}
+              </span>
+            </div>
+          </motion.div>
+        </div>
+      </div>
 
+      {/* Body */}
+      <div className="mx-auto w-full max-w-2xl px-5">
+        {/* Quick facts */}
+        <FadeIn className="relative -mt-8">
+          <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-5 shadow-lift">
+            <Fact icon={Calendar} label="When" value={formatCompactRange(trip.start_date, trip.end_date)} sub={trip.dateRange ?? ""} />
+            <Fact
+              icon={Wallet}
+              label="Budget"
+              value={pp ? `₹${(pp.min / 1000).toFixed(pp.min % 1000 === 0 ? 0 : 1)}k` : "Flexible"}
+              sub="per person"
+            />
+            <Fact icon={Users} label="Spots" value={`${Math.max(spotsLeft, 0)} left`} sub={trip.solo_friendly ? "solo-friendly" : "group"} />
+          </div>
+        </FadeIn>
+
+        {(vibes.length > 0 || trip.solo_friendly || trip.budget_flexibility) && (
+          <FadeIn delay={0.03} className="mt-5 flex flex-wrap gap-2">
+            {trip.solo_friendly && (
+              <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-primary">🧍 Solo friendly</span>
+            )}
+            {trip.budget_flexibility && (
+              <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                {trip.budget_flexibility === "strict" ? "🎯 Strict budget" : "🌊 Flexible budget"}
+              </span>
+            )}
+            {vibes.map((v) => (
+              <span key={v.id} className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                {v.emoji} {v.label}
+              </span>
+            ))}
+          </FadeIn>
+        )}
+
+        {/* Organizer */}
+        {organizer && (
+          <FadeIn delay={0.05} className="mt-6">
+            <Link
+              to="/profile/$userId"
+              params={{ userId: organizer.id }}
+              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-soft transition hover:-translate-y-0.5"
+            >
+              <Avatar person={{ id: organizer.id, name: organizer.full_name, avatar: organizer.avatar_url }} size={48} />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Organized by</p>
+                <p className="truncate font-semibold text-foreground">
+                  {organizer.full_name}
+                  {organizer.email_verified && <span className="ml-1 text-xs font-semibold text-primary">✓</span>}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  {organizerStats && (
+                    <>
+                      {organizerStats.organized} trip{organizerStats.organized === 1 ? "" : "s"} organized
+                      {organizerStats.completed > 0 ? `, ${organizerStats.completed} completed` : ""}
+                      {organizer.created_at && " · "}
+                    </>
+                  )}
+                  {organizer.created_at && formatMemberSince(organizer.created_at)}
+                </p>
+                {organizer.response_time_expectation && (
+                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                    {RESPONSE_TIME_LABELS[organizer.response_time_expectation]}
+                  </p>
+                )}
+              </div>
+              {organizer.travel_personality && (
+                <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-primary">
+                  {organizer.travel_personality}
+                </span>
+              )}
+            </Link>
+          </FadeIn>
+        )}
+
+        {(daysToStart >= 0 && daysToStart <= 30) || progression || isOrganizer || pendingProfiles.length > 0 ? (
+          <div className="mt-4 space-y-1">
             {daysToStart >= 0 && daysToStart <= 30 && (
-              <p className="mt-3 text-xs font-medium text-ink/50">
+              <p className="text-xs font-medium text-muted-foreground">
                 {daysToStart === 0 ? "Dates lock in today" : `${daysToStart} day${daysToStart === 1 ? "" : "s"} until these dates lock in`}
               </p>
             )}
-
             {progression && (
-              <p className="mt-1 text-xs font-medium text-ink/50">
+              <p className="text-xs font-medium text-muted-foreground">
                 Started with {progression.initial}, now {progression.current} going
               </p>
             )}
-
             {isOrganizer && (
-              <p className="mt-3 text-xs text-ink/50">
+              <p className="text-xs text-muted-foreground">
                 {pending.length} requested · {approved.length} approved
               </p>
             )}
-
-            {/* Item 13 — count + first names only, never full profiles/avatars,
-                and only ever shown to approved members (see the effect above). */}
             {pendingProfiles.length > 0 && (
-              <p className="mt-3 text-xs text-ink/50">
+              <p className="text-xs text-muted-foreground">
                 {pendingProfiles.length} more {pendingProfiles.length === 1 ? "person has" : "people have"} requested to join:{" "}
                 {pendingProfiles.map((p) => p.full_name?.split(" ")[0] ?? "Someone").join(", ")}
               </p>
             )}
-
-            {trip.description && (
-              <section className="mt-6">
-                <h2 className="fomo-heading text-ink text-lg font-semibold">About</h2>
-                <p className="mt-2 text-sm leading-relaxed text-ink/60 whitespace-pre-wrap">{trip.description}</p>
-              </section>
-            )}
-
-            {isOrganizer && pending.length > 0 && (
-              <section className="mt-6">
-                <h2 className="fomo-heading text-ink text-lg font-semibold">Join requests ({pending.length})</h2>
-                <div className="mt-3 space-y-2">
-                  {pending.map((m) => <PendingRow key={m.id} memberId={m.id} userId={m.user_id} onUpdate={updateMember} />)}
-                </div>
-              </section>
-            )}
-
-            {myMembership?.status === "approved" && (
-              <section className="mt-6">
-                <Link to="/trip/$tripId/chat" params={{ tripId }} className="block rounded-2xl bg-primary py-4 text-center font-semibold text-primary-foreground shadow-[var(--shadow-glow)]">
-                  Open group chat →
-                </Link>
-              </section>
-            )}
           </div>
-        </main>
+        ) : null}
 
-        {/* Sticky CTA */}
-        {!isOrganizer && (
-          <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom)+88px)]">
-            <div className="warm-card mx-auto max-w-md rounded-2xl p-3">
-              {myMembership?.status === "approved" ? (
-                <p className="py-2 text-center text-sm font-medium text-primary"><Check className="mr-1 inline h-4 w-4" /> You're in this trip</p>
-              ) : myMembership?.status === "pending" ? (
-                <p className="py-2 text-center text-sm font-medium text-ink/60">Request sent · waiting for organizer</p>
-              ) : (
-                <>
-                  <p className="mb-2 text-center text-xs text-ink/60">{spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left</p>
-                  {/* Item 5 — split-cost preview surfaced right before joining,
-                      not just after; reuses the same pp already computed above. */}
-                  {pp && (
-                    <p className="mb-2 text-center text-xs font-medium text-ink/50">
-                      💰 ~₹{pp.min}–{pp.max} per person if the trip fills up
-                    </p>
-                  )}
-                  <button
-                    onClick={() => {
-                      trackEvent({ name: "join_request_started", tripId, isFirstEver: isFirstEverRequest });
-                      isFirstEverRequest ? setShowFirstRequestIntro(true) : requestToJoin();
-                    }}
-                    disabled={requesting || spotsLeft <= 0}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50"
-                  >
-                    {requesting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Request to join
-                  </button>
-                  {/* Item 3 — persistent trust line, shown every time, every trip */}
-                  <p className="mt-2 text-center text-[11px] text-ink/40">
-                    Organizers approve every request — you're never just dropped into a trip with strangers.
-                  </p>
-                </>
-              )}
+        {/* Summary */}
+        {trip.vibe_summary && (
+          <FadeIn delay={0.06} className="mt-10">
+            <Eyebrow>The idea</Eyebrow>
+            <p className="mt-3 text-pretty text-xl leading-relaxed text-foreground/90">{trip.vibe_summary}</p>
+          </FadeIn>
+        )}
+
+        {/* About */}
+        {trip.description && (
+          <FadeIn delay={0.08} className="mt-10">
+            <Eyebrow>About</Eyebrow>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{trip.description}</p>
+          </FadeIn>
+        )}
+
+        {/* The crew */}
+        {crew.length > 0 && (
+          <div className="mt-12">
+            <Eyebrow>Who&apos;s going</Eyebrow>
+            <div className="mt-4 space-y-3">
+              {approvedProfiles.map((p, i) => (
+                <FadeIn key={p.id} delay={Math.min(i * 0.04, 0.3)}>
+                  <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+                    <Avatar person={{ id: p.id, name: p.full_name, avatar: p.avatar_url }} size={44} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        {p.full_name}
+                        {p.id === trip.organizer_id && (
+                          <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">organiser</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {p.travel_personality ?? "Traveler"}
+                        {p.created_at ? ` · ${formatMemberSince(p.created_at)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                </FadeIn>
+              ))}
             </div>
           </div>
         )}
 
-        {showFirstRequestIntro && (
-          <FirstRequestIntro
-            onConfirm={() => {
-              setShowFirstRequestIntro(false);
-              requestToJoin();
-            }}
-            onCancel={() => {
-              trackEvent({ name: "join_request_cancelled", tripId });
-              setShowFirstRequestIntro(false);
-            }}
-          />
+        {/* Join requests (organizer only) */}
+        {isOrganizer && pending.length > 0 && (
+          <div className="mt-12">
+            <Eyebrow>Join requests ({pending.length})</Eyebrow>
+            <div className="mt-3 space-y-2">
+              {pending.map((m) => (
+                <PendingRow key={m.id} memberId={m.id} userId={m.user_id} onUpdate={updateMember} />
+              ))}
+            </div>
+          </div>
         )}
 
-        <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} targetType="trip" targetId={tripId} />
+        {/* Trust note */}
+        <FadeIn className="mt-10">
+          <div className="flex gap-3 rounded-3xl bg-secondary/60 p-5">
+            <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
+            <p className="text-sm leading-relaxed text-secondary-foreground">
+              Your exact location and contact stay private until you&apos;re approved. Requesting to join just starts
+              a conversation — {organizer?.full_name ?? "the organizer"} chooses who comes along.
+            </p>
+          </div>
+        </FadeIn>
 
-        <BottomNav />
-        <Outlet />
+        {myMembership?.status === "approved" && (
+          <div className="mt-6">
+            <PressBtn href={`/trip/${tripId}/chat`} variant="primary" size="lg" className="w-full">
+              Open group chat →
+            </PressBtn>
+          </div>
+        )}
       </div>
+
+      {/* Sticky join bar */}
+      {!isOrganizer && (
+        <motion.div
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ ...spring.soft, delay: 0.2 }}
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[620px] border-t border-border/70 bg-popover/90 px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl"
+        >
+          {myMembership?.status === "approved" ? (
+            <p className="py-2 text-center text-sm font-medium text-primary">You&apos;re in this trip</p>
+          ) : myMembership?.status === "pending" ? (
+            <p className="py-2 text-center text-sm font-medium text-muted-foreground">Request sent · waiting for organizer</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="min-w-0">
+                {pp ? (
+                  <p className="text-lg font-semibold">
+                    ₹{pp.min.toLocaleString("en-IN")}
+                    <span className="text-sm font-normal text-muted-foreground"> / person</span>
+                  </p>
+                ) : (
+                  <p className="text-lg font-semibold">Flexible budget</p>
+                )}
+                <p className="text-xs text-muted-foreground">{Math.max(spotsLeft, 0)} spots left</p>
+              </div>
+              <PressBtn
+                variant="primary"
+                size="lg"
+                className="ml-auto flex-1"
+                disabled={requesting || spotsLeft <= 0}
+                onClick={() => {
+                  trackEvent({ name: "join_request_started", tripId, isFirstEver: isFirstEverRequest });
+                  isFirstEverRequest ? setShowFirstRequestIntro(true) : requestToJoin();
+                }}
+              >
+                {requesting && <Loader2 className="size-4 animate-spin" />}
+                Request to join
+              </PressBtn>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {showFirstRequestIntro && (
+        <FirstRequestIntro
+          onConfirm={() => {
+            setShowFirstRequestIntro(false);
+            requestToJoin();
+          }}
+          onCancel={() => {
+            trackEvent({ name: "join_request_cancelled", tripId });
+            setShowFirstRequestIntro(false);
+          }}
+        />
+      )}
+
+      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} targetType="trip" targetId={tripId} />
+
+      <Dock />
+      <Outlet />
     </div>
   );
 }
 
-// Items 4/5 — shown once, ever, before a user's very first join-request
-// submission (see isFirstEverRequest above). Never reappears after that
-// first real trip_members row exists, on any trip.
 function FirstRequestIntro({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="warm-card text-ink relative z-10 w-full max-w-md rounded-t-3xl p-6 text-center shadow-2xl sm:rounded-3xl">
-        <h2 className="fomo-heading text-xl font-bold">Before you send your first request</h2>
-        <p className="mt-3 text-sm text-ink/70">
-          Request-to-join keeps trips small and intentional — organizers get to see who's asking before anyone shows
-          up.
+      <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-popover p-6 text-center text-foreground shadow-2xl sm:rounded-3xl">
+        <h2 className="display text-xl font-semibold">Before you send your first request</h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Request-to-join keeps trips small and intentional — organizers get to see who&apos;s asking before anyone
+          shows up.
         </p>
-        <p className="mt-3 text-sm text-ink/70">
-          You're not messaging a stranger cold — the organizer can already see your profile, and you'll see exactly
-          who else is in before you go.
+        <p className="mt-3 text-sm text-muted-foreground">
+          You&apos;re not messaging a stranger cold — the organizer can already see your profile, and you&apos;ll see
+          exactly who else is in before you go.
         </p>
         <div className="mt-6 flex gap-3">
-          <button onClick={onCancel} className="hover:bg-ink/5 flex-1 rounded-full border border-ink/10 py-3 text-sm font-medium text-ink transition">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-full border border-border py-3 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
             Not yet
           </button>
-          <button onClick={onConfirm} className="bg-primary text-cream flex-1 rounded-full py-3 text-sm font-semibold transition hover:opacity-90">
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          >
             Send request
           </button>
         </div>
@@ -411,17 +529,26 @@ function FirstRequestIntro({ onConfirm, onCancel }: { onConfirm: () => void; onC
   );
 }
 
-function InfoCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function Fact({ icon: Icon, label, value, sub }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; sub: string }) {
   return (
-    <div className="warm-card flex-shrink-0 rounded-2xl px-4 py-3 min-w-[120px]">
-      <div className="flex items-center gap-1.5 text-ink/60">{icon}<span className="text-[11px]">{label}</span></div>
-      <p className="text-ink mt-1 text-sm font-semibold">{value}</p>
-      {sub && <p className="text-ink/50 text-[10px]">{sub}</p>}
+    <div className="text-center">
+      <Icon className="mx-auto size-5 text-muted-foreground" />
+      <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-semibold leading-tight">{value}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
     </div>
   );
 }
 
-function PendingRow({ memberId, userId, onUpdate }: { memberId: string; userId: string; onUpdate: (id: string, s: "approved" | "rejected", reason?: string | null) => void }) {
+function PendingRow({
+  memberId,
+  userId,
+  onUpdate,
+}: {
+  memberId: string;
+  userId: string;
+  onUpdate: (id: string, s: "approved" | "rejected", reason?: string | null) => void;
+}) {
   const [profile, setProfile] = useState<any>(null);
   const [declineOpen, setDeclineOpen] = useState(false);
   useEffect(() => {
@@ -429,29 +556,25 @@ function PendingRow({ memberId, userId, onUpdate }: { memberId: string; userId: 
   }, [userId]);
   if (!profile) return null;
   return (
-    // Note: the decline modal is mounted as a SIBLING of this warm-card div,
-    // not nested inside it — warm-card's backdrop-filter creates a new CSS
-    // containing block, which would otherwise confine a `fixed` modal to
-    // this small card's bounds instead of the full viewport.
     <>
-      <div className="warm-card flex items-center gap-3 rounded-2xl p-3">
-        <Link to="/profile/$userId" params={{ userId }} className="flex flex-1 min-w-0 items-center gap-3">
-          {profile.avatar_url ? (
-            <img src={profile.avatar_url} className="h-10 w-10 rounded-full object-cover" alt="" />
-          ) : (
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/20 font-bold text-primary">{profile.full_name?.slice(0, 1)}</div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-ink truncate font-semibold text-sm">
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+        <Link to="/profile/$userId" params={{ userId }} className="flex min-w-0 flex-1 items-center gap-3">
+          <Avatar person={{ id: profile.id, name: profile.full_name, avatar: profile.avatar_url }} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-foreground">
               {profile.full_name}
-              {profile.email_verified && <span className="text-pine ml-1 text-[10px] font-semibold">✓</span>}
+              {profile.email_verified && <span className="ml-1 text-[10px] font-semibold text-primary">✓</span>}
             </p>
-            <p className="truncate text-xs text-ink/60">{profile.travel_personality ?? "Traveler"}</p>
-            {profile.created_at && <p className="truncate text-[10px] text-ink/40">{formatMemberSince(profile.created_at)}</p>}
+            <p className="truncate text-xs text-muted-foreground">{profile.travel_personality ?? "Traveler"}</p>
+            {profile.created_at && <p className="truncate text-[10px] text-muted-foreground/70">{formatMemberSince(profile.created_at)}</p>}
           </div>
         </Link>
-        <button onClick={() => setDeclineOpen(true)} className="warm-card text-ink/60 rounded-full px-3 py-1.5 text-xs">Decline</button>
-        <button onClick={() => onUpdate(memberId, "approved")} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Approve</button>
+        <button onClick={() => setDeclineOpen(true)} className="rounded-full bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+          Decline
+        </button>
+        <button onClick={() => onUpdate(memberId, "approved")} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
+          Approve
+        </button>
       </div>
 
       <DeclineReasonModal
@@ -471,11 +594,11 @@ function BackButton() {
   const navigate = useNavigate();
   return (
     <button
-      onClick={() => router.history.canGoBack?.() ? router.history.back() : navigate({ to: "/home" })}
-      className="warm-card text-ink absolute left-4 top-[calc(env(safe-area-inset-top)+12px)] grid h-10 w-10 place-items-center rounded-full"
+      onClick={() => (router.history.canGoBack?.() ? router.history.back() : navigate({ to: "/home" }))}
+      className="grid size-10 place-items-center rounded-full bg-ink/40 text-ink-foreground backdrop-blur-md transition-transform active:scale-90"
       aria-label="Go back"
     >
-      <ArrowLeft className="h-4 w-4" />
+      <ArrowLeft className="size-5" />
     </button>
   );
 }

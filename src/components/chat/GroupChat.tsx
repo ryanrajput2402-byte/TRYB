@@ -25,8 +25,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCompactRange } from "@/lib/format-date";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
-import { useAppTheme } from "@/lib/theme-context";
 import { trackEvent } from "@/lib/analytics";
 
 type Profile = {
@@ -176,11 +174,10 @@ function scrollToMessage(id: string) {
 }
 
 export function GroupChat({ tripId }: { tripId: string }) {
-  // Theme is now app-global (owned by the _authenticated layout) — chat just
-  // reads it to wrap itself in the matching class. No picker/switcher here
-  // anymore; that lives on Home (first login) and Profile (change anytime).
-  const { preference: themePreference } = useAppTheme();
-  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
+  // Chat has moved onto the TRYB visual identity — same scoped-class
+  // mechanism the season themes used (this literal replaces what used to be
+  // a seasonThemeClassName() lookup), so nothing else in this file changes.
+  const themeClassName = "tryb-theme";
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);

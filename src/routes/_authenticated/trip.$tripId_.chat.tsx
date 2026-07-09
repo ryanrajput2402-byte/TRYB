@@ -2,8 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupChat } from "@/components/chat/GroupChat";
-import { useAppTheme } from "@/lib/theme-context";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 
 export const Route = createFileRoute("/_authenticated/trip/$tripId_/chat")({
   head: () => ({ meta: [{ title: "Group chat — TRYB" }] }),
@@ -13,8 +11,7 @@ export const Route = createFileRoute("/_authenticated/trip/$tripId_/chat")({
 function ChatPage() {
   const { tripId } = Route.useParams();
   const [status, setStatus] = useState<"checking" | "allowed" | "denied">("checking");
-  const { preference: themePreference } = useAppTheme();
-  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
+  const themeClassName = "tryb-theme";
 
   useEffect(() => {
     let cancelled = false;
