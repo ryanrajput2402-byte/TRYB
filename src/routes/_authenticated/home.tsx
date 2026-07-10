@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { HomeMasthead } from "@/components/home-masthead";
 import { TravelQuoteWidget } from "@/components/travel-quote-widget";
 import { PostsFeed } from "@/components/posts-feed";
 import { Dock } from "@/components/tryb/dock";
+import { HomeHero } from "@/components/tryb/home-hero";
 import { toast } from "sonner";
 
 type Profile = {
@@ -73,7 +73,7 @@ function HomeFeed() {
 
   return (
     <div className="tryb-theme relative mx-auto min-h-screen w-full max-w-[620px] bg-background pb-32 shadow-[0_0_120px_oklch(0.2_0.02_60_/_0.06)] sm:border-x sm:border-border/60">
-      <HomeMasthead avatarUrl={profile?.avatar_url} name={profile?.full_name} />
+      <HomeHero avatarUrl={profile?.avatar_url} />
 
       {/* Quiet editorial breath between the hero and the feed. */}
       <TravelQuoteWidget />
