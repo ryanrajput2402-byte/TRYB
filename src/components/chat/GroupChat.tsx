@@ -585,10 +585,28 @@ export function GroupChat({ tripId }: { tripId: string }) {
     setSending(true);
     setComposerText("");
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("messages")
-        .insert({ trip_id: tripId, sender_id: currentUserId, message_type: "text", content: text });
+        .insert({ trip_id: tripId, sender_id: currentUserId, message_type: "text", content: text })
+        .select()
+        .single();
       if (error) throw error;
+
+      // Add the sender's own message immediately instead of waiting on the
+      // realtime echo — mirrors createPoll's merge-not-duplicate pattern via
+      // the postgres_changes handler's own m.id === row.id de-dupe check.
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === inserted.id)) return prev;
+        return [
+          ...prev,
+          {
+            ...inserted,
+            metadata: inserted.metadata ?? {},
+            reactions: [],
+            poll: null,
+          } as ChatMessage,
+        ];
+      });
 
       const keyoMatch = text.match(/^\/keyo\s*(.*)$/i);
       if (keyoMatch) {
@@ -1324,6 +1342,8 @@ function MessageRow({
             />
           ) : message.message_type === "poll" && message.poll ? (
             <PollCard poll={message.poll} currentUserId={currentUserId} onVote={onVote} />
+          ) : message.message_type === "post_reference" ? (
+            <PostReferenceCard message={message} />
           ) : isKeyo ? (
             <div
               className="rounded-2xl p-[1px]"
@@ -1395,6 +1415,23 @@ function MessageRow({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Share-to-group from the Feed — reuses this same chat message system via
+// a post_reference message_type (metadata carries the shared post's
+// essentials, same JSONB column expense/poll messages already use).
+function PostReferenceCard({ message }: { message: ChatMessage }) {
+  const meta = message.metadata;
+  return (
+    <div className="warm-card shadow-warm w-64 overflow-hidden rounded-2xl">
+      {meta.image && <img src={meta.image} alt="" className="h-32 w-full object-cover" />}
+      <div className="p-3">
+        <p className="text-clay text-[10px] font-bold uppercase tracking-[0.15em]">Shared a post</p>
+        <p className="mt-1 text-xs text-ink/50">{meta.poster_name ?? "Someone"}{meta.destination ? ` · ${meta.destination}` : ""}</p>
+        {meta.caption && <p className="mt-1.5 line-clamp-2 text-sm text-ink/85">{meta.caption}</p>}
       </div>
     </div>
   );

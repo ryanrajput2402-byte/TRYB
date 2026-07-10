@@ -16,6 +16,8 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 type Step = "solo-group" | "season" | "destination" | "payoff" | "close";
+const STEP_ORDER: Step[] = ["solo-group", "season", "destination", "payoff", "close"];
+const SEASON_EMOJI: Record<string, string> = { spring: "🌱", summer: "☀️", autumn: "🍂", winter: "❄️" };
 
 type RealMatch = {
   id: string;
@@ -181,8 +183,9 @@ function Onboarding() {
       <div className="fomo-grain" aria-hidden />
       <div className="relative mx-auto flex min-h-screen max-w-lg flex-col px-6 pb-10 pt-14" style={{ zIndex: 2 }}>
         {step === "solo-group" && (
-          <StepFrame eyebrow="Step 1 of 5">
-            <h1 className="fomo-heading text-ink text-3xl font-bold leading-tight">Solo, or bringing your people?</h1>
+          <StepFrame stepIndex={1}>
+            <p className="text-xs font-medium text-ink/40">Welcome to TRYB</p>
+            <h1 className="fomo-heading text-ink mt-1 text-3xl font-bold leading-tight">Solo, or bringing your people?</h1>
             <div className="mt-8 grid grid-cols-2 gap-3">
               <TapCard label="Just me" emoji="🧍" onClick={() => pickGroup("solo")} />
               <TapCard label="With my people" emoji="👥" onClick={() => pickGroup("flexible")} />
@@ -191,7 +194,7 @@ function Onboarding() {
         )}
 
         {step === "season" && (
-          <StepFrame eyebrow="Step 2 of 5">
+          <StepFrame stepIndex={2}>
             <h1 className="fomo-heading text-ink text-3xl font-bold leading-tight">
               Every trip has a season. Which one's you?
             </h1>
@@ -200,13 +203,12 @@ function Onboarding() {
                 <button
                   key={s.id}
                   onClick={() => pickSeason(s.id)}
-                  className={`${s.className} shadow-warm rounded-2xl bg-sand p-3 text-left transition hover:-translate-y-0.5 active:scale-[0.98]`}
+                  className={`${s.className} shadow-warm rounded-2xl bg-sand p-4 text-left transition hover:-translate-y-0.5 active:scale-[0.98]`}
                 >
-                  <div className="space-y-1.5 rounded-xl bg-cream p-2">
-                    <div className="shadow-warm-sm w-3/4 rounded-full bg-cream px-2 py-1 text-[9px] text-ink/70">hey! so hyped</div>
-                    <div className="bg-clay ml-auto w-3/4 rounded-full px-2 py-1 text-right text-[9px] text-white">same, let's go</div>
+                  <div className="bg-primary/15 grid h-10 w-10 place-items-center rounded-full text-lg">
+                    {SEASON_EMOJI[s.id]}
                   </div>
-                  <p className="fomo-heading mt-2 text-sm font-bold text-ink">{s.label}</p>
+                  <p className="fomo-heading mt-3 text-sm font-bold text-ink">{s.label}</p>
                   <p className="text-[11px] text-ink/50">{s.mood}</p>
                 </button>
               ))}
@@ -215,14 +217,14 @@ function Onboarding() {
         )}
 
         {step === "destination" && (
-          <StepFrame eyebrow="Step 3 of 5">
+          <StepFrame stepIndex={3}>
             <h1 className="fomo-heading text-ink text-3xl font-bold leading-tight">Where's pulling at you lately?</h1>
             <div className="mt-8 grid grid-cols-2 gap-3">
               {destinationChips.map((d) => (
                 <button
                   key={d.name}
                   onClick={() => pickDestination(d.name)}
-                  className="group relative aspect-[4/5] overflow-hidden rounded-3xl border-2 border-transparent transition hover:border-primary"
+                  className="shadow-warm group relative aspect-[4/5] overflow-hidden rounded-3xl border-2 border-transparent transition hover:border-primary"
                 >
                   <img src={d.image} alt={d.name} className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -238,7 +240,7 @@ function Onboarding() {
         )}
 
         {step === "payoff" && (
-          <StepFrame eyebrow="Step 4 of 5">
+          <StepFrame stepIndex={4}>
             {checkingMatch ? (
               <div className="flex flex-1 items-center justify-center py-20">
                 <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -325,7 +327,7 @@ function Onboarding() {
         )}
 
         {step === "close" && (
-          <StepFrame eyebrow="Step 5 of 5">
+          <StepFrame stepIndex={5}>
             <Sparkles className="text-primary h-8 w-8" />
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-ink/40">You're a</p>
             <h1 className="fomo-heading text-gradient-earth mt-1 text-4xl font-bold leading-tight sm:text-5xl">{identity}</h1>
@@ -349,11 +351,25 @@ function Onboarding() {
   );
 }
 
-function StepFrame({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) {
+// Section D — subtle segmented progress indicator replacing the plain "Step
+// X of 5" text (demoted to a small numeric label alongside it), matching
+// the calmer, more premium onboarding pattern used elsewhere tonight rather
+// than a form-wizard-style text-only counter.
+function StepFrame({ stepIndex, children }: { stepIndex: number; children: React.ReactNode }) {
+  const total = STEP_ORDER.length;
   return (
-    <div key={eyebrow} className="animate-fade-up flex flex-1 flex-col">
-      <p className="text-xs font-medium uppercase tracking-widest text-ink/40">{eyebrow}</p>
-      <div className="mt-3 flex flex-1 flex-col">{children}</div>
+    <div key={stepIndex} className="animate-fade-up flex flex-1 flex-col">
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1.5">
+          {Array.from({ length: total }, (_, i) => (
+            <div key={i} className={`h-1 flex-1 rounded-full ${i < stepIndex ? "bg-primary" : "bg-ink/10"}`} />
+          ))}
+        </div>
+        <p className="flex-shrink-0 text-[10px] font-medium uppercase tracking-widest text-ink/35">
+          {stepIndex}/{total}
+        </p>
+      </div>
+      <div className="mt-5 flex flex-1 flex-col">{children}</div>
     </div>
   );
 }

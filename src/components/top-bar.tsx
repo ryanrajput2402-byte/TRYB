@@ -1,11 +1,31 @@
 import { Bell } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
-export function TopBar({ avatarUrl, name }: { avatarUrl?: string | null; name?: string | null }) {
+export function TopBar({
+  avatarUrl,
+  name,
+  tagline,
+}: {
+  avatarUrl?: string | null;
+  name?: string | null;
+  // Section B — Home-only tagline stacked under the logo. Optional so every
+  // other page's header (Discover, Groups, Profile, chat, etc.) stays
+  // pixel-identical to before.
+  tagline?: boolean;
+}) {
   return (
     <header className="warm-card sticky top-0 z-30 flex items-center justify-between rounded-none border-0 border-b border-ink/8 px-5 pt-[env(safe-area-inset-top)] pb-3">
-      <Link to="/home" className="fomo-heading text-ink text-2xl font-bold tracking-tight">
-        TRY<span className="text-gradient-earth">B</span>
+      <Link to="/home" className="block">
+        <p className="fomo-heading text-ink text-2xl font-bold leading-tight tracking-tight">
+          TRY<span className="text-gradient-earth">B</span>
+        </p>
+        {tagline && (
+          <p className="mt-0.5 text-[10px] font-medium leading-tight text-ink/45">
+            Find your people.
+            <br />
+            Take the trip.
+          </p>
+        )}
       </Link>
       <div className="flex items-center gap-2">
         <button

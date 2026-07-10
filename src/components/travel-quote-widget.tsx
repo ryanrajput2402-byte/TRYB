@@ -15,10 +15,13 @@ function shuffled(length: number): number[] {
   return arr;
 }
 
-// Small, ambient quote widget for Home's upper-right hero space (desktop
-// only — rendered conditionally by the caller). Cycles through the full
-// TRAVEL_QUOTES list in shuffled order with no repeats until it wraps, then
-// reshuffles (avoiding an immediate repeat across the seam).
+// Ambient quote strip — a quiet editorial breath between the full-bleed
+// masthead and the content feed below it, on every breakpoint (its original
+// desktop-only upper-right hero placement doesn't exist anymore now that the
+// hero is a single centered composition, not a two-column layout). Cycles
+// through the full TRAVEL_QUOTES list in shuffled order with no repeats
+// until it wraps, then reshuffles (avoiding an immediate repeat across the
+// seam).
 export function TravelQuoteWidget() {
   const reducedMotion = usePrefersReducedMotion();
   const orderRef = useRef<number[]>(shuffled(TRAVEL_QUOTES.length));
@@ -34,7 +37,7 @@ export function TravelQuoteWidget() {
         posRef.current += 1;
         if (posRef.current >= orderRef.current.length) {
           const last = orderRef.current[orderRef.current.length - 1];
-          let next = shuffled(TRAVEL_QUOTES.length);
+          const next = shuffled(TRAVEL_QUOTES.length);
           if (TRAVEL_QUOTES.length > 1 && next[0] === last) {
             [next[0], next[1]] = [next[1], next[0]];
           }
@@ -52,14 +55,20 @@ export function TravelQuoteWidget() {
 
   return (
     <figure
-      className={`hidden lg:ml-auto lg:flex lg:w-96 lg:flex-shrink-0 lg:flex-col lg:items-start lg:gap-2 lg:self-start lg:pt-4 ${
+      className={`mx-auto flex max-w-xl flex-col items-center gap-2 px-6 py-8 text-center sm:py-10 ${
         reducedMotion ? "" : "transition-opacity ease-in-out"
       }`}
-      style={reducedMotion ? undefined : { transitionDuration: `${FADE_MS}ms`, opacity: visible ? 1 : 0 }}
+      style={
+        reducedMotion ? undefined : { transitionDuration: `${FADE_MS}ms`, opacity: visible ? 1 : 0 }
+      }
     >
-      <Quote className="text-ink/30 h-4 w-4 flex-shrink-0" aria-hidden />
-      <blockquote className="text-ink/50 text-sm font-light italic leading-relaxed">"{current.quote}"</blockquote>
-      <figcaption className="text-ink/35 text-xs font-medium not-italic">— {current.author}</figcaption>
+      <Quote className="text-ink/25 h-4 w-4 flex-shrink-0" aria-hidden />
+      <blockquote className="text-ink/55 text-sm font-light italic leading-relaxed sm:text-base">
+        "{current.quote}"
+      </blockquote>
+      <figcaption className="text-ink/35 text-xs font-medium not-italic">
+        — {current.author}
+      </figcaption>
     </figure>
   );
 }
