@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { BottomNav } from "@/components/bottom-nav";
 import { HomeMasthead } from "@/components/home-masthead";
 import { TravelQuoteWidget } from "@/components/travel-quote-widget";
 import { PostsFeed } from "@/components/posts-feed";
-import { useAppTheme } from "@/lib/theme-context";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
+import { Dock } from "@/components/tryb/dock";
 import { toast } from "sonner";
 
 type Profile = {
@@ -26,9 +24,6 @@ export const Route = createFileRoute("/_authenticated/home")({
 // destination pages now, reachable only via BottomNav. #section-feed is the
 // one remaining scroll-spy target BottomNav watches when pathname is /home.
 function HomeFeed() {
-  const { preference: themePreference } = useAppTheme();
-  const themeClassName = seasonThemeClassName(themePreference ?? DEFAULT_SEASON_THEME);
-
   const [profile, setProfile] = useState<Profile | null>(null);
   // Backs the "someone just joined" realtime toast below — only needs each
   // trip's own destination, not the going-count/member-face enrichment Home
@@ -77,26 +72,18 @@ function HomeFeed() {
   }, []);
 
   return (
-    <div className={`${themeClassName} relative min-h-screen`}>
-      <div className="warm-aurora" aria-hidden />
-      <div className="fomo-grain" aria-hidden />
-      <div className="relative" style={{ zIndex: 2 }}>
-        <HomeMasthead avatarUrl={profile?.avatar_url} name={profile?.full_name} />
+    <div className="tryb-theme relative mx-auto min-h-screen w-full max-w-[620px] bg-background pb-32 shadow-[0_0_120px_oklch(0.2_0.02_60_/_0.06)] sm:border-x sm:border-border/60">
+      <HomeMasthead avatarUrl={profile?.avatar_url} name={profile?.full_name} />
 
-        {/* Quiet editorial breath between the hero and the feed. */}
-        <TravelQuoteWidget />
+      {/* Quiet editorial breath between the hero and the feed. */}
+      <TravelQuoteWidget />
 
-        <main className="mx-auto max-w-2xl px-4 pb-10 pt-4 sm:px-6 lg:max-w-4xl lg:px-8 xl:max-w-5xl">
-          {/* The feed stays capped at reading width even though <main> above
-              widens on lg/xl — a wider container should add breathing room
-              around the page, not stretch post cards past a comfortable
-              line length. */}
-          <div id="section-feed" className="mx-auto max-w-2xl scroll-mt-20">
-            <PostsFeed />
-          </div>
-        </main>
-        <BottomNav />
-      </div>
+      <main className="mx-auto max-w-2xl px-4 pb-10 pt-4">
+        <div id="section-feed" className="mx-auto max-w-2xl scroll-mt-20">
+          <PostsFeed />
+        </div>
+      </main>
+      <Dock />
     </div>
   );
 }

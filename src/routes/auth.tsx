@@ -4,7 +4,6 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
-import { DEFAULT_SEASON_THEME, seasonThemeClassName } from "@/lib/seasonal-themes";
 import { LoginMapPanel } from "@/components/login-map-panel";
 
 const searchSchema = z.object({
@@ -75,69 +74,51 @@ function AuthPage() {
     }
   }
 
-  const themeClassName = seasonThemeClassName(DEFAULT_SEASON_THEME);
-
   return (
-    <div className={`${themeClassName} relative min-h-screen overflow-hidden`}>
+    <div className="tryb-theme relative min-h-screen overflow-hidden">
       <LoginMapPanel />
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-24">
-        <Link to="/" className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-cream/80 hover:text-cream sm:left-8 sm:top-8">
-          <ArrowLeft className="h-4 w-4" /> Back
+        <Link to="/" className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-ink-foreground/80 hover:text-ink-foreground sm:left-8 sm:top-8">
+          <ArrowLeft className="size-4" /> Back
         </Link>
 
-        <div className="warm-card shadow-warm w-full max-w-md rounded-3xl p-6 sm:p-8">
-          <h1 className="fomo-heading text-ink text-4xl font-bold tracking-tight">
+        <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-lift sm:p-8">
+          <h1 className="display text-4xl font-semibold tracking-tight text-foreground">
             {isSignup ? "Join the tribe" : "Welcome back"}
           </h1>
-          <p className="mt-2 text-sm text-ink/60">
+          <p className="mt-2 text-sm text-muted-foreground">
             {isSignup ? "Create an account in 30 seconds." : "Sign in to see your trips."}
           </p>
 
           <button
             onClick={signInGoogle}
             disabled={googleLoading}
-            className="shadow-warm-sm text-ink mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-cream px-4 py-3.5 font-medium transition hover:opacity-90 disabled:opacity-50"
+            className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-background px-4 py-3.5 font-medium text-foreground shadow-soft transition hover:opacity-90 disabled:opacity-50"
           >
-            {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+            {googleLoading ? <Loader2 className="size-4 animate-spin" /> : <GoogleIcon />}
             Continue with Google
           </button>
 
-          <div className="my-6 flex items-center gap-3 text-xs text-ink/40">
-            <div className="bg-ink/10 h-px flex-1" /> OR <div className="bg-ink/10 h-px flex-1" />
+          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" /> OR <div className="h-px flex-1 bg-border" />
           </div>
 
           <form onSubmit={onSubmit} className="space-y-3">
             {isSignup && (
               <Field label="Full name">
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Alex Rivers"
-                  className="ipt"
-                  autoComplete="name"
-                  required
-                />
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Rivers" autoComplete="name" required />
               </Field>
             )}
             <Field label="Email">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-                className="ipt"
-                autoComplete="email"
-                required
-              />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" autoComplete="email" required />
             </Field>
             <Field label="Password">
-              <input
+              <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="ipt"
                 autoComplete={isSignup ? "new-password" : "current-password"}
                 minLength={6}
                 required
@@ -147,20 +128,16 @@ function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-primary text-cream mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-semibold shadow-[var(--shadow-glow)] transition hover:scale-[1.01] disabled:opacity-60"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-semibold text-primary-foreground shadow-soft transition hover:scale-[1.01] disabled:opacity-60"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading && <Loader2 className="size-4 animate-spin" />}
               {isSignup ? "Create account" : "Sign in"}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-ink/60">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? "Already a member?" : "New to TRYB?"}{" "}
-            <Link
-              to="/auth"
-              search={{ mode: isSignup ? "login" : "signup" }}
-              className="font-semibold text-primary"
-            >
+            <Link to="/auth" search={{ mode: isSignup ? "login" : "signup" }} className="font-semibold text-primary">
               {isSignup ? "Sign in" : "Create one"}
             </Link>
           </p>
@@ -173,9 +150,18 @@ function AuthPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-ink/50 mb-1.5 block text-xs font-medium">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary"
+    />
   );
 }
 
