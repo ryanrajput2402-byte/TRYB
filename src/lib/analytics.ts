@@ -12,7 +12,11 @@ export type AnalyticsEvent =
   | { name: "save_tapped"; tripId: string; saved: boolean }
   // Group D, item 1 — every Discover filter interaction, tagged by axis, so
   // usage across destination/date/size/vibe/solo is directly comparable.
-  | { name: "discover_filter_used"; filterType: "destination" | "date" | "size" | "vibe" | "solo" | "budget"; value: string }
+  | {
+      name: "discover_filter_used";
+      filterType: "destination" | "date" | "size" | "vibe" | "solo" | "budget";
+      value: string;
+    }
   // Group E, item 1 — a new user-facing flow step (adding an informal
   // running-spend estimate in chat), tracked the same way as everything else.
   | { name: "spend_estimate_added"; tripId: string; amount: number }
@@ -39,11 +43,38 @@ export type AnalyticsEvent =
   // New onboarding flow — which step someone reached, and whether a real
   // trip match existed at the payoff step (real signal, never guessed).
   | { name: "onboarding_step_reached"; step: string }
-  | { name: "onboarding_completed"; matched: boolean };
+  | { name: "onboarding_completed"; matched: boolean }
+  // Cinematic Opener funnel (Step 0 plan) — fired pre-auth on Steps 1-2, so
+  // these rely on the anon insert policy on analytics_events (user_id null).
+  | { name: "onboarding_montage_view" }
+  | { name: "onboarding_montage_skip" }
+  | { name: "onboarding_login_view" }
+  | { name: "onboarding_login_success" }
+  | {
+      name: "onboarding_feed_view";
+      vibe: string;
+      realTripCount: number;
+      fallbackWidened: boolean;
+    }
+  | { name: "onboarding_trip_opened"; tripId: string }
+  | { name: "onboarding_join_requested"; tripId: string }
+  // Mandatory preference wizard (Task 2) — entry/completion pairs per
+  // screen, so drop-off is visible even though there's no skip to instrument
+  // separately. Values are the actual answer, not just "screen reached."
+  | { name: "onboarding_wizard_recency_entered" }
+  | { name: "onboarding_wizard_recency_completed"; days: number }
+  | { name: "onboarding_wizard_intent_entered" }
+  | { name: "onboarding_wizard_intent_completed"; days: number }
+  | { name: "onboarding_wizard_beaches_mountains_entered" }
+  | { name: "onboarding_wizard_beaches_mountains_completed"; choice: "beach" | "mountain" }
+  | { name: "onboarding_wizard_tags_entered" }
+  | { name: "onboarding_wizard_tags_completed"; tags: string[] }
+  // Restored 5-slide product-tour carousel, shown once on first
+  // authenticated landing after onboarding (see _authenticated/route.tsx).
+  | { name: "onboarding_intro_dismissed"; lastSlide: number; completed: boolean };
 
 export function trackEvent(event: AnalyticsEvent) {
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    // eslint-disable-next-line no-console
     console.debug("[analytics:stub]", event.name, event);
   }
 
@@ -54,7 +85,6 @@ export function trackEvent(event: AnalyticsEvent) {
       .insert({ user_id: data.session?.user.id ?? null, name, payload })
       .then(({ error }) => {
         if (error && typeof window !== "undefined" && window.location.hostname === "localhost") {
-          // eslint-disable-next-line no-console
           console.debug("[analytics] insert failed", error.message);
         }
       });

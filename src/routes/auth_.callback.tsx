@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 
 export const Route = createFileRoute("/auth_/callback")({
   component: AuthCallback,
@@ -18,6 +19,10 @@ function AuthCallback() {
         navigate({ to: "/auth", search: { mode: "login" } });
         return;
       }
+      // Google's OAuth redirect bypasses auth.tsx's own onSubmit handlers
+      // entirely, so this is the only place the Google path can mark the
+      // Step 2 leak point as crossed.
+      trackEvent({ name: "onboarding_login_success" });
       const { data: p } = await supabase
         .from("profiles")
         .select("onboarding_completed")

@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Loader as Loader2 } from "lucide-react";
 import { LoginMapPanel } from "@/components/login-map-panel";
+import { PullLampOverlay } from "@/components/pull-lamp-overlay";
+import { trackEvent } from "@/lib/analytics";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).catch("signup"),
@@ -26,6 +28,13 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // Step 2 of the Cinematic Opener — the highest-risk leak point in the
+  // funnel, so it gets its own view event distinct from the generic
+  // onboarding_step_reached used by the old wizard.
+  useEffect(() => {
+    trackEvent({ name: "onboarding_login_view" });
+  }, []);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
@@ -43,11 +52,13 @@ function AuthPage() {
         });
         if (error) throw error;
         toast.success("Welcome to TRYB!");
+        trackEvent({ name: "onboarding_login_success" });
         navigate({ to: "/onboarding" });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         toast.success("Welcome back ✨");
+        trackEvent({ name: "onboarding_login_success" });
         navigate({ to: "/home" });
       }
     } catch (err) {
@@ -78,8 +89,21 @@ function AuthPage() {
     <div className="tryb-theme relative min-h-screen overflow-hidden">
       <LoginMapPanel />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-24">
-        <Link to="/" className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-ink-foreground/80 hover:text-ink-foreground sm:left-8 sm:top-8">
+      {/* Step 2 of the Cinematic Opener — "switch the light on" continues the
+          montage's narrative straight into the login card. Content beneath
+          stays fully interactive throughout (see PullLampOverlay), so the
+          drag is a mood beat, never a gate in front of signing in. */}
+      <PullLampOverlay forceShow promptText="Go on, let yourself in." />
+
+      {/* items-start + generous top padding on mobile: the redesigned lamp
+          hangs from the top of the viewport there, so the card needs to
+          clear it. On sm+ the lamp sits off to the side instead, so normal
+          vertical centering is safe again. */}
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-start px-6 pb-24 pt-[13.5rem] sm:flex-row sm:justify-center sm:py-24">
+        <Link
+          to="/"
+          className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-ink-foreground/80 hover:text-ink-foreground sm:left-8 sm:top-8"
+        >
           <ArrowLeft className="size-4" /> Back
         </Link>
 
@@ -107,11 +131,24 @@ function AuthPage() {
           <form onSubmit={onSubmit} className="space-y-3">
             {isSignup && (
               <Field label="Full name">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Rivers" autoComplete="name" required />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Alex Rivers"
+                  autoComplete="name"
+                  required
+                />
               </Field>
             )}
             <Field label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" autoComplete="email" required />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                autoComplete="email"
+                required
+              />
             </Field>
             <Field label="Password">
               <Input
@@ -137,7 +174,11 @@ function AuthPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? "Already a member?" : "New to TRYB?"}{" "}
-            <Link to="/auth" search={{ mode: isSignup ? "login" : "signup" }} className="font-semibold text-primary">
+            <Link
+              to="/auth"
+              search={{ mode: isSignup ? "login" : "signup" }}
+              className="font-semibold text-primary"
+            >
               {isSignup ? "Sign in" : "Create one"}
             </Link>
           </p>
@@ -168,10 +209,22 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24">
-      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
-      <path fill="#FBBC05" d="M5.84 14.11A6.6 6.6 0 0 1 5.48 12c0-.73.13-1.44.36-2.11V7.05H2.18A11 11 0 0 0 1 12c0 1.77.42 3.45 1.18 4.95l3.66-2.84z"/>
-      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.05l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.11A6.6 6.6 0 0 1 5.48 12c0-.73.13-1.44.36-2.11V7.05H2.18A11 11 0 0 0 1 12c0 1.77.42 3.45 1.18 4.95l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.05l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
+      />
     </svg>
   );
 }

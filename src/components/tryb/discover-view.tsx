@@ -10,6 +10,7 @@ import { FadeIn, Img } from "@/components/tryb/motion-primitives";
 import { cn } from "@/lib/utils";
 import { DESTINATIONS } from "@/lib/destinations";
 import { urgencyRatio, type TripCardData as Trip } from "@/lib/trip-urgency";
+import { trackEvent } from "@/lib/analytics";
 
 const VIBES = ["All", "Beaches", "Mountains", "Cities", "Forest", "Desert"] as const;
 const VIBE_MAP: Record<string, string> = {
@@ -40,6 +41,47 @@ export function DiscoverView({
   const [query, setQuery] = useState("");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [meId, setMeId] = useState<string | null>(null);
+  // Real demand signal for destinations with zero real trips — moved here
+  // from the old onboarding wizard's "nobody's called this yet" screen when
+  // that wizard was replaced by the Cinematic Opener, since the new Step 3
+  // only ever surfaces destinations that already have real trips (there's
+  // no zero-trip moment left inside onboarding to hang this off of).
+  const [interestCounts, setInterestCounts] = useState<Map<string, number>>(new Map());
+  const [myInterests, setMyInterests] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      setMeId(u.user?.id ?? null);
+      const { data: rows } = await supabase
+        .from("destination_interest")
+        .select("destination, user_id");
+      const counts = new Map<string, number>();
+      const mine = new Set<string>();
+      (rows ?? []).forEach((r) => {
+        counts.set(r.destination, (counts.get(r.destination) ?? 0) + 1);
+        if (u.user && r.user_id === u.user.id) mine.add(r.destination);
+      });
+      setInterestCounts(counts);
+      setMyInterests(mine);
+    })();
+  }, []);
+
+  async function registerInterest(destination: string) {
+    if (!meId || myInterests.has(destination)) return;
+    setMyInterests((prev) => new Set(prev).add(destination));
+    setInterestCounts((prev) => new Map(prev).set(destination, (prev.get(destination) ?? 0) + 1));
+    try {
+      const { error } = await supabase
+        .from("destination_interest")
+        .insert({ user_id: meId, destination });
+      if (error) throw error;
+      trackEvent({ name: "destination_interest_registered", destination });
+    } catch {
+      // Optimistic state already reflects intent; a refresh reconciles if this failed.
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -53,7 +95,10 @@ export function DiscoverView({
       const tripIds = rawTrips.map((x) => x.id);
 
       const { data: memberRows } = tripIds.length
-        ? await supabase.from("trip_members").select("trip_id, user_id, status").in("trip_id", tripIds)
+        ? await supabase
+            .from("trip_members")
+            .select("trip_id, user_id, status")
+            .in("trip_id", tripIds)
         : { data: [] as any[] };
 
       const goingByTrip = new Map<string, number>();
@@ -68,9 +113,14 @@ export function DiscoverView({
       });
 
       const organizerIds = rawTrips.map((x) => x.organizer_id);
-      const allProfileIds = Array.from(new Set([...organizerIds, ...(memberRows ?? []).map((m: any) => m.user_id)]));
+      const allProfileIds = Array.from(
+        new Set([...organizerIds, ...(memberRows ?? []).map((m: any) => m.user_id)]),
+      );
       const { data: profs } = allProfileIds.length
-        ? await supabase.from("profiles").select("id, full_name, avatar_url").in("id", allProfileIds)
+        ? await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url")
+            .in("id", allProfileIds)
         : { data: [] as Profile[] };
       const profById = new Map((profs ?? []).map((p) => [p.id, p as Profile]));
 
@@ -137,8 +187,8 @@ export function DiscoverView({
           <span className="italic text-primary">favourite memory.</span>
         </h1>
         <p className="mt-4 max-w-md text-pretty leading-relaxed text-muted-foreground">
-          These aren&apos;t listings. They&apos;re real trips, with real people already going — looking for
-          someone exactly like you to come along.
+          These aren&apos;t listings. They&apos;re real trips, with real people already going —
+          looking for someone exactly like you to come along.
         </p>
       </FadeIn>
 
@@ -188,12 +238,17 @@ export function DiscoverView({
                 )}
                 <div className="mt-4 flex items-center gap-3">
                   <AvatarStack
-                    people={featured.memberFaces.map((p) => ({ id: p.id, name: p.full_name, avatar: p.avatar_url }))}
+                    people={featured.memberFaces.map((p) => ({
+                      id: p.id,
+                      name: p.full_name,
+                      avatar: p.avatar_url,
+                    }))}
                     size={30}
                     max={4}
                   />
                   <span className="text-sm text-ink-foreground/80">
-                    {featured.going} going · {Math.max(featured.max_members - featured.going, 0)} spots left
+                    {featured.going} going · {Math.max(featured.max_members - featured.going, 0)}{" "}
+                    spots left
                   </span>
                   <ArrowUpRight className="ml-auto size-6 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
                 </div>
@@ -248,7 +303,11 @@ export function DiscoverView({
                   exit={{ opacity: 0, scale: 0.96 }}
                   transition={spring.soft}
                 >
-                  <TripCard trip={t} saved={saved.has(t.id)} onToggleSave={() => onToggleSave(t.id)} />
+                  <TripCard
+                    trip={t}
+                    saved={saved.has(t.id)}
+                    onToggleSave={() => onToggleSave(t.id)}
+                  />
                 </motion.div>
               ))}
             </motion.div>
@@ -271,6 +330,8 @@ export function DiscoverView({
         <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-4">
           {DESTINATIONS.map((d) => {
             const count = destinationTripCounts.get(d.name) ?? 0;
+            const interest = interestCounts.get(d.name) ?? 0;
+            const mine = myInterests.has(d.name);
             return (
               <motion.div
                 key={d.slug}
@@ -285,9 +346,24 @@ export function DiscoverView({
                     {d.flag} {d.name}
                   </h4>
                   <p className="text-xs text-ink-foreground/70">{d.country}</p>
-                  <p className="mt-3 text-xs text-ink-foreground/70">
-                    {count > 0 ? `${count} trip${count === 1 ? "" : "s"} open` : "Be the first to plan one"}
-                  </p>
+                  {count > 0 ? (
+                    <p className="mt-3 text-xs text-ink-foreground/70">
+                      {count} trip{count === 1 ? "" : "s"} open
+                    </p>
+                  ) : mine ? (
+                    <p className="mt-3 text-xs font-medium text-ink-foreground/85">
+                      {interest <= 1
+                        ? "Noted — you're first to want this."
+                        : `Noted — one of ${interest} who want this.`}
+                    </p>
+                  ) : (
+                    <button
+                      onClick={() => registerInterest(d.name)}
+                      className="mt-3 rounded-full bg-ink-foreground/15 px-3 py-1.5 text-xs font-medium text-ink-foreground backdrop-blur-md transition hover:bg-ink-foreground/25"
+                    >
+                      Be the first to plan one
+                    </button>
+                  )}
                 </div>
               </motion.div>
             );
@@ -313,10 +389,18 @@ function EmptyState({ onReset }: { onReset: () => void }) {
         Nothing fits that combination right now. Loosen a filter, or be the one who starts it.
       </p>
       <div className="mt-5 flex gap-3">
-        <button onClick={onReset} className={cn("rounded-full bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground")}>
+        <button
+          onClick={onReset}
+          className={cn(
+            "rounded-full bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground",
+          )}
+        >
           Clear filters
         </button>
-        <Link to="/create" className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background">
+        <Link
+          to="/create"
+          className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background"
+        >
           Start a trip
         </Link>
       </div>

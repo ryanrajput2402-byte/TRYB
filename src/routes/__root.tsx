@@ -6,7 +6,7 @@ import {
   Scripts,
   useRouter,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,9 +54,19 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  // supabase-js re-fires SIGNED_IN (and sometimes USER_UPDATED) for the same
+  // user on things like tab refocus/session revalidation, not just real
+  // sign-in/out — router.invalidate() remounts the route tree, which was
+  // wiping in-progress local state (e.g. mid-wizard step) on those redundant
+  // events. Only invalidate when the signed-in user identity actually
+  // changes, which is the only time route guards/data genuinely need it.
+  const lastUserId = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      const userId = session?.user?.id ?? null;
+      if (userId === lastUserId.current) return;
+      lastUserId.current = userId;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
